@@ -1,0 +1,7 @@
+# Requirements inferred from test.py
+opencv-python
+numpy
+torch
+torchvision
+timm
+pillow
