@@ -525,7 +525,7 @@ def health():
 
 # ====================== MAIN ======================
 if __name__ == '__main__':
-    # Initialize Genomic API
+    # Initialize Genomic API (Flask routes on :5050 — legacy)
     try:
         from genomic import create_genomic_api
         create_genomic_api(app)
@@ -534,6 +534,61 @@ if __name__ == '__main__':
         logger.warning(f"⚠ Genomic module not available: {e}")
     except Exception as e:
         logger.error(f"✗ Failed to initialize genomic API: {e}")
+
+    # Start FastAPI genomic server on :5051 in background thread
+    def start_genomic_server():
+        """Launch the De Bruijn genomic analysis FastAPI server on port 5051."""
+        import socket
+        GENOMIC_PORT = 5051
+        MAX_RETRIES = 3
+
+        for attempt in range(MAX_RETRIES):
+            # Check if port is free before trying to bind
+            try:
+                test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                test_sock.settimeout(1)
+                result = test_sock.connect_ex(('127.0.0.1', GENOMIC_PORT))
+                test_sock.close()
+                if result == 0:
+                    # Port is in use — try to free it
+                    logger.warning(f"Port {GENOMIC_PORT} in use, attempting to free (attempt {attempt+1}/{MAX_RETRIES})...")
+                    import subprocess
+                    subprocess.run(
+                        ['powershell', '-Command',
+                         f"Get-NetTCPConnection -LocalPort {GENOMIC_PORT} -ErrorAction SilentlyContinue | "
+                         f"Select-Object -ExpandProperty OwningProcess -Unique | "
+                         f"Where-Object {{ $_ -ne 0 }} | "
+                         f"ForEach-Object {{ Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }}"],
+                        capture_output=True, timeout=5
+                    )
+                    time.sleep(2)
+            except Exception:
+                pass  # Port is free or check failed — proceed
+
+            try:
+                import uvicorn
+                from genomic_server import app as genomic_app
+                logger.info(f"✓ Starting FastAPI genomic server on port {GENOMIC_PORT}...")
+                uvicorn.run(genomic_app, host="0.0.0.0", port=GENOMIC_PORT, log_level="info")
+                return  # Server exited normally
+            except OSError as e:
+                if "10048" in str(e) or "address already in use" in str(e).lower():
+                    logger.warning(f"Port {GENOMIC_PORT} still in use, retrying in 3s...")
+                    time.sleep(3)
+                else:
+                    logger.error(f"✗ Genomic server error: {e}")
+                    return
+            except ImportError as e:
+                logger.warning(f"⚠ Could not start genomic server (missing dependency): {e}")
+                return
+            except Exception as e:
+                logger.error(f"✗ Failed to start genomic server: {e}")
+                return
+
+        logger.error(f"✗ Could not start genomic server after {MAX_RETRIES} attempts — port {GENOMIC_PORT} is locked.")
+
+    genomic_thread = threading.Thread(target=start_genomic_server, daemon=True)
+    genomic_thread.start()
 
     # Start capture thread
     capture_thread = threading.Thread(target=capture_thermal_stream, daemon=True)
@@ -546,6 +601,8 @@ if __name__ == '__main__':
     logger.info(f"Starting THERMASCAN inference server on port {PORT}")
     logger.info(f"Available endpoints:")
     logger.info(f"  Thermal imaging: http://localhost:{PORT}/status")
-    logger.info(f"  Genomic analysis: http://localhost:{PORT}/api/genomic/health")
+    logger.info(f"  Genomic analysis (Flask): http://localhost:{PORT}/api/genomic/health")
+    logger.info(f"  Genomic analysis (FastAPI): http://localhost:5051/health")
     # Use threaded=True for MJPEG streaming support
     app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
+

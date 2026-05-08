@@ -27,5 +27,5 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 // Inference server endpoint
 export const INFERENCE_SERVER_URL = import.meta.env.VITE_INFERENCE_SERVER || 'http://localhost:5050';
 
-// Genomic analysis server endpoint (integrated with inference server)
-export const GENOMIC_SERVER_URL = import.meta.env.VITE_GENOMIC_SERVER || 'http://localhost:5050';
+// Genomic analysis server endpoint (FastAPI on :5051, separate from Flask thermal :5050)
+export const GENOMIC_SERVER_URL = import.meta.env.VITE_GENOMIC_SERVER || 'http://localhost:5051';

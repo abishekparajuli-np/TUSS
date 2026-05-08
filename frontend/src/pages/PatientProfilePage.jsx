@@ -160,6 +160,41 @@ export default function PatientProfilePage() {
         pdf.text(`Signed by: ${report.doctorSignature || 'N/A'}`, 10, y); y += 5;
       }
 
+      // Genomic risk data (if available)
+      const genomicProfile = patient?.genomic_profile;
+      if (genomicProfile) {
+        y += 5;
+        pdf.setFontSize(13);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text('Genomic Risk Analysis', 10, y);
+        y += 7;
+
+        pdf.setFontSize(10);
+        const prs = genomicProfile.prs || 0;
+        pdf.text(`Polygenic Risk Score (PRS): ${(prs * 100).toFixed(0)}%`, 10, y); y += 5;
+        pdf.text(`Risk Category: ${genomicProfile.risk_category || 'N/A'}`, 10, y); y += 5;
+        pdf.text(`Total Variants Detected: ${genomicProfile.variants_detected || 0}`, 10, y); y += 5;
+        if (genomicProfile.source_file) {
+          pdf.text(`Source File: ${genomicProfile.source_file}`, 10, y); y += 5;
+        }
+
+        // Per-gene breakdown
+        const geneOrder = ['VEGF', 'MMP1', 'COL1A1', 'TNF', 'IL6'];
+        const locusDetails = genomicProfile.locus_details || {};
+        if (Object.keys(locusDetails).length > 0) {
+          y += 3;
+          pdf.setFontSize(9);
+          pdf.text('Gene    Variants  Alignment', 10, y); y += 4;
+          geneOrder.forEach((gene) => {
+            const ld = locusDetails[gene] || {};
+            const alignPct = ((ld.alignment_score || 0) * 100).toFixed(1);
+            pdf.text(`${gene.padEnd(8)} ${String(ld.variant_count || 0).padEnd(10)} ${alignPct}%`, 10, y);
+            y += 4;
+          });
+        }
+        y += 3;
+      }
+
       // Footer
       pdf.setFontSize(8);
       pdf.setTextColor(128, 128, 128);

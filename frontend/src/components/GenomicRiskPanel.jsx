@@ -105,16 +105,34 @@ export default function GenomicRiskPanel({ patientId }) {
   const [expanded, setExpanded] = useState(true);
   const fileInputRef = useRef(null);
 
-  // Load existing genomic profile
+  // Load existing genomic profile — try API first, fallback to Firestore
   useEffect(() => {
     const loadProfile = async () => {
       try {
+        // Try the FastAPI server first
         const res = await genomicApi.getGenomicProfile(patientId);
         setProfile(res.data.genomic_profile);
         setFusedHistory(res.data.fused_risk_history || []);
       } catch {
-        // No profile yet — that's fine
-        setProfile(null);
+        // Fallback: read genomic_profile directly from Firestore
+        try {
+          const patientRef = doc(db, 'patients', patientId);
+          const patientSnap = await getDoc(patientRef);
+          if (patientSnap.exists()) {
+            const pData = patientSnap.data();
+            if (pData.genomic_profile) {
+              setProfile(pData.genomic_profile);
+              setFusedHistory(pData.fused_risk_history || []);
+            } else {
+              setProfile(null);
+            }
+          } else {
+            setProfile(null);
+          }
+        } catch {
+          // No profile yet — that's fine
+          setProfile(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -129,8 +147,8 @@ export default function GenomicRiskPanel({ patientId }) {
 
     // Validate extension
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!['fastq', 'fq', 'txt'].includes(ext)) {
-      toast.error('Please upload a FASTQ file (.fastq, .fq, or .txt)');
+    if (!['fastq', 'fq', 'fasta', 'fa', 'txt'].includes(ext)) {
+      toast.error('Please upload a FASTQ/FASTA file (.fastq, .fq, .fasta, .fa, or .txt)');
       return;
     }
 
@@ -211,7 +229,7 @@ export default function GenomicRiskPanel({ patientId }) {
 
       toast.success(`Genomic analysis complete — PRS: ${(data.prs * 100).toFixed(0)}% (${data.risk_category})`);
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Upload failed';
+      const msg = err.response?.data?.detail || err.response?.data?.message || err.message || 'Upload failed';
       toast.error(`Genomic analysis failed: ${msg}`);
     } finally {
       setUploading(false);
@@ -322,7 +340,7 @@ export default function GenomicRiskPanel({ patientId }) {
                 ref={fileInputRef}
                 id="fastq-upload"
                 type="file"
-                accept=".fastq,.fq,.txt"
+                accept=".fastq,.fq,.fasta,.fa,.txt"
                 onChange={handleUpload}
                 style={{ display: 'none' }}
               />
@@ -391,7 +409,7 @@ export default function GenomicRiskPanel({ patientId }) {
                       ref={fileInputRef}
                       id="fastq-reupload"
                       type="file"
-                      accept=".fastq,.fq,.txt"
+                      accept=".fastq,.fq,.fasta,.fa,.txt"
                       onChange={handleUpload}
                       style={{ display: 'none' }}
                     />

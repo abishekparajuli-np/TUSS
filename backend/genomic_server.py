@@ -35,20 +35,51 @@ from models.fusion_model import FusionModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ====================== FIREBASE INIT ======================
+# ====================== FIREBASE (LAZY INIT) ======================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SERVICE_ACCOUNT_PATH = os.path.join(BASE_DIR, '..', 'serviceAccountKey.json')
 
-# Only initialize if not already initialized
-if not firebase_admin._apps:
-    if os.path.exists(SERVICE_ACCOUNT_PATH):
-        cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
-        firebase_admin.initialize_app(cred)
-        logger.info(f"Firebase initialized with service account")
-    else:
-        logger.warning("serviceAccountKey.json not found, Firebase disabled")
+db = None
+_firebase_initialized = False
 
-db = firestore.client() if firebase_admin._apps else None
+def _init_firebase():
+    """Lazy Firebase initialization — only called when server starts serving."""
+    global db, _firebase_initialized
+    if _firebase_initialized:
+        return
+    _firebase_initialized = True
+
+    if not firebase_admin._apps:
+        if os.path.exists(SERVICE_ACCOUNT_PATH):
+            try:
+                # Validate the key can generate a valid JWT first
+                from google.oauth2 import service_account as sa_module
+                from google.auth.transport.requests import Request
+
+                sa_creds = sa_module.Credentials.from_service_account_file(
+                    SERVICE_ACCOUNT_PATH,
+                    scopes=["https://www.googleapis.com/auth/datastore"]
+                )
+                sa_creds.refresh(Request())
+
+                # Key is valid — initialize Firebase Admin
+                cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
+                firebase_admin.initialize_app(cred)
+                db = firestore.client()
+                logger.info("Firebase initialized and connected successfully")
+            except Exception as e:
+                logger.warning(f"⚠ Firebase unavailable: {e}")
+                logger.warning("   Genomic analysis works without Firebase — frontend handles persistence.")
+                db = None
+        else:
+            logger.warning("serviceAccountKey.json not found, Firebase disabled")
+    else:
+        try:
+            db = firestore.client()
+            logger.info("Firebase reusing existing connection")
+        except Exception as e:
+            logger.warning(f"⚠ Firebase client failed: {e}")
+            db = None
 
 # ====================== FASTAPI APP ======================
 app = FastAPI(
@@ -64,6 +95,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Firebase when server starts (not at import time)."""
+    _init_firebase()
 
 # ====================== SHARED INSTANCES ======================
 risk_scorer = GenomicRiskScorer()

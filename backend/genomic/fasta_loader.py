@@ -59,12 +59,12 @@ class FastaLoader:
                 logger.error(f"✗ Failed to load {fasta_file}: {e}")
 
     @staticmethod
-    def parse_fasta(fasta_path: Path) -> Tuple[str, list]:
+    def parse_fasta(fasta_input) -> Tuple[str, list]:
         """
-        Parse FASTA file.
+        Parse FASTA file or FASTA content string.
 
         Args:
-            fasta_path: Path to FASTA file
+            fasta_input: Path to FASTA file, or raw FASTA content string
 
         Returns:
             Tuple of (sequence_string, headers_list)
@@ -72,8 +72,24 @@ class FastaLoader:
         sequence = ""
         headers = []
 
-        with open(fasta_path, "r") as f:
-            for line in f:
+        # Determine if input is a file path or raw content
+        input_path = Path(fasta_input) if not isinstance(fasta_input, Path) else fasta_input
+
+        if input_path.exists() and input_path.is_file():
+            # Input is a file path — read from disk
+            with open(input_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if line.startswith(">"):
+                        headers.append(line[1:])
+                    else:
+                        sequence += line.upper()
+        else:
+            # Input is raw FASTA content string
+            content = str(fasta_input)
+            for line in content.split("\n"):
                 line = line.strip()
                 if not line:
                     continue

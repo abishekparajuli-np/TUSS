@@ -70,14 +70,16 @@ export default function ReportPage() {
             const pData = patientDoc.data();
             setPatientData(pData);
 
-            // Load genomic profile if it exists
+            // Load genomic profile if it exists in Firestore
             if (pData.genomic_profile) {
               setGenomicData(pData.genomic_profile);
             } else {
-              // Try fetching from genomic server
+              // Try fetching from genomic server as fallback
               try {
                 const gRes = await genomicApi.getGenomicProfile(scan.patientId);
-                setGenomicData(gRes.data.genomic_profile || null);
+                if (gRes.data?.genomic_profile) {
+                  setGenomicData(gRes.data.genomic_profile);
+                }
               } catch {
                 // No genomic data available — that's okay
               }
@@ -347,7 +349,7 @@ export default function ReportPage() {
       pdf.save(`THERMASCAN_Report_${scanId}.pdf`);
 
       // 3. Save report metadata to Firestore (fast — small document)
-      await setDoc(doc(db, 'reports', scanId), {
+      const reportData = {
         patientId: scanData?.patientId || '',
         doctorId: currentUser?.uid || '',
         generatedAt: serverTimestamp(),
@@ -358,8 +360,29 @@ export default function ReportPage() {
         pdfUrl: '', // Storage upload skipped for speed
         aiSummary: `Analysis detected ${scanData?.status || 'UNKNOWN'} with ${(
           safeNum(scanData?.confidence) * 100
-        ).toFixed(1)}% confidence.`,
-      });
+        ).toFixed(1)}% confidence.${genomicData ? ` Genomic PRS: ${(safeNum(genomicData.prs) * 100).toFixed(0)}% (${genomicData.risk_category || 'N/A'}).` : ''}`,
+        // Thermal data snapshot for consistent viewing
+        scanStatus: scanData?.status || 'UNKNOWN',
+        scanConfidence: safeNum(scanData?.confidence),
+        scanRiskScore: safeNum(scanData?.riskScore),
+        scanAsymmetry: safeNum(scanData?.asymmetry),
+        scanVariance: safeNum(scanData?.variance),
+        scanEdgeStrength: safeNum(scanData?.edgeStrength),
+      };
+
+      // Include genomic data in the report document for consistent viewing
+      if (genomicData) {
+        reportData.genomicProfile = {
+          prs: genomicData.prs || 0,
+          risk_category: genomicData.risk_category || 'UNKNOWN',
+          variants_detected: genomicData.variants_detected || 0,
+          locus_details: genomicData.locus_details || {},
+          source_file: genomicData.source_file || '',
+          last_updated: genomicData.last_updated || '',
+        };
+      }
+
+      await setDoc(doc(db, 'reports', scanId), reportData);
 
       toast.success('Report generated and downloaded!');
 

@@ -77,6 +77,7 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 | **jsPDF** | 2.5.1 | PDF generation |
 | **html2canvas** | 1.4.1 | Screenshot capturing |
 | **React Hot Toast** | 2.4.1 | Toast notifications |
+| **Firestore** | Firebase SDK | Genomic data persistence |
 
 ### Backend
 | Technology | Version | Purpose |
@@ -88,6 +89,8 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 | **TIMM** | 0.9.7 | PyTorch image models |
 | **OpenCV** | 4.8.1.78 | Image processing |
 | **NumPy** | 1.24.3 | Numerical computing |
+| **Biopython** | 1.81+ | FASTA parsing & sequence analysis |
+| **Smith-Waterman** | Custom | Local sequence alignment |
 
 ### Infrastructure
 | Technology | Purpose |
@@ -99,10 +102,14 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 ### AI/ML
 | Component | Details |
 |-----------|---------|
-| **Model Architecture** | DeiT Small (Data-efficient Image Transformer) |
-| **Input Size** | 224×224 thermal images |
-| **Output Classes** | 2-class classification (HEALTHY / ULCER RISK) |
-| **Framework** | PyTorch + TIMM |
+| **Thermal Model** | DeiT Small (Data-efficient Image Transformer) |
+| **Thermal Input** | 224×224 thermal images |
+| **Thermal Output** | 2-class classification (HEALTHY / ULCER RISK) |
+| **Thermal Framework** | PyTorch + TIMM |
+| **Genomic Model** | De Bruijn Graph + Smith-Waterman Alignment |
+| **Genomic Input** | FASTQ patient sequences |
+| **Genomic Output** | Polygenic Risk Score (PRS) + Variant Detection |
+| **Reference Genes** | VEGF, MMP1, COL1A1, TNF, IL6 (wound healing genes) |
 
 ---
 
@@ -130,18 +137,20 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 │ (Port 5050)  │   │ (Port 5050)      │ & Firestore
 └──────┬───────┘   └──────┬───────┘   └──────────────┘
        │                  │
-       └──────────┬───────┘
-                  │
-         ┌────────▼────────┐
-         │  DeiT Model     │
-         │  Inference      │
-         │  Pipeline       │
-         └────────────────┘
-                  │
-         ┌────────▼────────┐
-         │ Thermal Camera  │
-         │ Stream (MJPEG)  │
-         └─────────────────┘
+        ┌────────────┬───────────┴────────────┐
+                  │                        │
+         ┌────────▼────────┐   ┌──────────▼──────────┐
+         │  DeiT Model     │   │  Genomic Analysis   │
+         │  Inference      │   │  Engine             │
+         │  (Thermal)      │   │  (FASTQ sequences)  │
+         └────────┬────────┘   └──────────┬──────────┘
+                  │                       │
+                  ▼                       ▼
+         ┌─────────────────┐   ┌──────────────────────┐
+         │ Thermal Camera  │   │ Reference Genes      │
+         │ Stream (MJPEG)  │   │ (FASTA files)        │
+         └─────────────────┘   │ - VEGF, MMP1, etc.   │
+                               └──────────────────────┘
 
         DATABASE LAYER
        ┌──────────────────┐
@@ -162,16 +171,30 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 2. Patient Registration
    Browser (Form) → Firebase (Firestore) → Patient Record
 
-3. Live Scan Analysis (20-second window)
+3. Live Scan Analysis (Thermal) — 20-second window
    Thermal Camera → MJPEG Stream → Backend WebSocket
    Backend → DeiT Model → Prediction Buffer → Frontend
    Frontend (Real-time UI Updates) → Doctor Review
 
-4. Report Generation
-   Scan Results → PDF Generator → Firebase Storage → Download
+4. Genomic Analysis (FASTQ Upload)
+   Patient FASTQ File → Frontend Parser → Backend API
+   Backend: Load Reference Genes (FASTA files)
+            → Smith-Waterman Alignment
+            → Variant Detection (SNPs, INDELs)
+            → Polygenic Risk Score (PRS) Calculation
+            → Firestore Storage
+   Frontend: Display PRS gauge, gene breakdown table, results
 
-5. Patient History
-   Browser → Firebase Query → Recent Scans → Display
+5. Fused Risk Analysis
+   Thermal Results + Genomic PRS → Clinical Interpretation
+   Combined risk score with thermal-genomic weighting
+
+6. Report Generation
+   Thermal Results + Genomic Data → PDF Generator
+   → Firebase Storage → Download
+
+7. Patient History
+   Browser → Firebase Query → Recent Scans + Analyses → Display
 ```
 
 ---
@@ -195,12 +218,14 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 │   │   │   ├── StatusBadge.jsx
 │   │   │   ├── ThermalRiskBar.jsx
 │   │   │   ├── PredictionBuffer.jsx
-│   │   │   └── MetricDisplay.jsx
+│   │   │   ├── MetricDisplay.jsx
+│   │   │   └── GenomicRiskPanel.jsx   # Genomic analysis UI
 │   │   ├── 📁 context/              # React Context (Auth)
 │   │   │   └── AuthContext.jsx
 │   │   ├── 📁 utils/                # Utility functions
 │   │   │   ├── firebaseInit.js
 │   │   │   ├── inferenceApi.js
+│   │   │   ├── genomicApi.js          # Genomic analysis API
 │   │   │   └── ProtectedRoute.jsx
 │   │   ├── 📁 config/               # Configuration
 │   │   │   └── firebase.js
@@ -222,9 +247,21 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 │
 ├── 📁 backend/                      # Python Flask Backend
 │   ├── inference_server.py          # Main API server
-│   ├── deit_thermo_model.pth        # AI Model (PyTorch)
+│   ├── deit_thermo_model.pth        # AI Model (PyTorch - Thermal)
 │   ├── requirements.txt
 │   ├── Dockerfile
+│   ├── 📁 genomic/                  # Genomic analysis module
+│   │   ├── __init__.py
+│   │   ├── analysis_engine.py       # Main genomic analysis pipeline
+│   │   ├── fasta_loader.py          # FASTA parser & sequence analysis
+│   │   ├── api.py                   # Genomic API endpoints
+│   │   ├── refrence/                # Reference gene sequences
+│   │   │   ├── VEGF.fasta
+│   │   │   ├── MMP1.fasta
+│   │   │   ├── COL1A1.fasta
+│   │   │   ├── TNF.fasta
+│   │   │   └── IL6.fasta
+│   │   └── 📁 models/               # Genomic model weights (optional)
 │   └── 📁 build/                    # Build output
 │
 ├── 📁 firebase/                     # Firebase Configuration
@@ -355,8 +392,11 @@ REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 REACT_APP_FIREBASE_APP_ID=your_app_id
 
-# Backend API
+# Backend API (Thermal & Genomic Analysis)
 REACT_APP_INFERENCE_SERVER=http://localhost:5050
+
+# Optional: Separate genomic server (uses inference server by default)
+REACT_APP_GENOMIC_SERVER=http://localhost:5050
 ```
 
 ### 4. Firebase Configuration
@@ -524,6 +564,38 @@ BUFFER_SIZE = 60                                                 # Frame buffer 
 CONFIDENCE_THRESHOLD = 0.5                                       # Prediction threshold
 ```
 
+### Genomic Analysis Configuration
+
+**Location**: `backend/genomic/` (Automatic)
+
+The genomic analysis system is automatically initialized with:
+
+```python
+# Reference genes directory
+backend/genomic/refrence/
+  ├── VEGF.fasta     (30% weight - Angiogenesis)
+  ├── MMP1.fasta     (25% weight - Tissue Remodeling)
+  ├── COL1A1.fasta   (20% weight - Collagen production)
+  ├── TNF.fasta      (15% weight - Inflammation)
+  └── IL6.fasta      (10% weight - Immune Response)
+
+# Analysis parameters (in analysis_engine.py)
+Clinical Genes: VEGF, MMP1, COL1A1, TNF, IL6
+Alignment Method: Smith-Waterman (local alignment)
+Risk Thresholds:
+  - LOW: PRS < 0.30
+  - MODERATE: PRS 0.30-0.60
+  - HIGH: PRS ≥ 0.60
+```
+
+**Frontend Setup for Genomic Upload**:
+- Supported formats: `.fastq`, `.fq`, `.txt`
+- Maximum file size: 50MB
+- Automatic FASTQ parsing with gene identification
+- Results automatically saved to Firestore
+
+---
+
 ### Firebase Configuration
 
 **Location**: `firebase.json`
@@ -683,7 +755,230 @@ socket.on('update', (data) => {
 
 ---
 
-## ✨ Features
+### Genomic Analysis API Endpoints
+
+#### 1. **Health Check** (Genomic Service)
+
+```http
+GET /api/genomic/health
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "healthy",
+  "genes_loaded": 5,
+  "reference_sequences": {
+    "VEGF": 1200,
+    "MMP1": 1150,
+    "COL1A1": 1500,
+    "TNF": 1050,
+    "IL6": 1300
+  }
+}
+```
+
+---
+
+#### 2. **Get Reference Information**
+
+```http
+GET /api/genomic/reference-info
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "success",
+  "data": {
+    "genes": ["VEGF", "MMP1", "COL1A1", "TNF", "IL6"],
+    "total_sequences": 5,
+    "weights": {
+      "VEGF": 0.30,
+      "MMP1": 0.25,
+      "COL1A1": 0.20,
+      "TNF": 0.15,
+      "IL6": 0.10
+    }
+  }
+}
+```
+
+---
+
+#### 3. **Analyze Patient Genome**
+
+```http
+POST /api/genomic/analyze
+Content-Type: application/json
+
+{
+  "patient_id": "patient_123",
+  "sequences": {
+    "VEGF": "ATGAACTTTCTGCTGTCTT...",
+    "MMP1": "ATGCACAGCTTTCCTCCAC...",
+    "COL1A1": "ATGTTCAGCTTTGTGGACC...",
+    "TNF": "ATGAGCACTGAAAGCATGA...",
+    "IL6": "ATGAACTCCTTCTCCACAA..."
+  }
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "success",
+  "patient_id": "patient_123",
+  "prs": 0.45,
+  "risk_category": "MODERATE",
+  "total_variants": 4,
+  "timestamp": "2024-05-09T14:30:00Z",
+  "locus_details": {
+    "VEGF": {
+      "variant_count": 2,
+      "snp_count": 1,
+      "indel_count": 1,
+      "deletion_count": 0,
+      "alignment_score": 0.855
+    },
+    "MMP1": {
+      "variant_count": 0,
+      "snp_count": 0,
+      "indel_count": 0,
+      "deletion_count": 0,
+      "alignment_score": 0.923
+    },
+    "COL1A1": {
+      "variant_count": 1,
+      "snp_count": 1,
+      "indel_count": 0,
+      "deletion_count": 0,
+      "alignment_score": 0.789
+    },
+    "TNF": {
+      "variant_count": 0,
+      "snp_count": 0,
+      "indel_count": 0,
+      "deletion_count": 0,
+      "alignment_score": 0.882
+    },
+    "IL6": {
+      "variant_count": 1,
+      "snp_count": 1,
+      "indel_count": 0,
+      "deletion_count": 0,
+      "alignment_score": 0.815
+    }
+  },
+  "analysis": {
+    "alignment_results": {...},
+    "variant_summary": {...},
+    "haplotype_analysis": {...},
+    "polygenic_risk_score": {...},
+    "clinical_interpretation": {...}
+  }
+}
+```
+
+---
+
+#### 4. **Upload & Analyze FASTQ File**
+
+```javascript
+// Client-side (JavaScript/React)
+const formData = new FormData();
+formData.append('file', fastqFile);
+formData.append('patient_id', 'patient_123');
+
+fetch('http://localhost:5050/api/genomic/analyze', {
+  method: 'POST',
+  body: formData
+})
+.then(res => res.json())
+.then(data => console.log(data));
+```
+
+**Response**: Same as #3 above (PRS score, variants, locus details)
+
+---
+
+#### 5. **Get Variant Report**
+
+```http
+GET /api/genomic/variants/patient_123
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "success",
+  "patient_id": "patient_123",
+  "variants": {
+    "VEGF": {
+      "snps": [...],
+      "insertions": [...],
+      "deletions": [...]
+    },
+    ...
+  },
+  "timestamp": "2024-05-09T14:30:00Z"
+}
+```
+
+---
+
+#### 6. **Get PRS Report**
+
+```http
+GET /api/genomic/prs/patient_123
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "success",
+  "patient_id": "patient_123",
+  "prs": 0.45,
+  "risk_category": "MODERATE",
+  "risk_description": "Moderate genetic predisposition to delayed wound healing",
+  "gene_contributions": {
+    "VEGF": 0.135,
+    "MMP1": 0.115,
+    "COL1A1": 0.090,
+    "TNF": 0.068,
+    "IL6": 0.042
+  }
+}
+```
+
+---
+
+#### 7. **Get Clinical Interpretation**
+
+```http
+GET /api/genomic/clinical-interpretation/patient_123
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "success",
+  "patient_id": "patient_123",
+  "interpretation": {
+    "risk_level": "MODERATE",
+    "summary": "Patient shows moderate genetic predisposition to delayed wound healing",
+    "key_genes": ["VEGF", "MMP1"],
+    "recommendations": [
+      "Enhanced wound care monitoring",
+      "Consider genetic counseling",
+      "Regular follow-up assessments"
+    ],
+    "clinical_significance": "..."
+  }
+}
+```
+
+---
 
 ### 1. **Authentication & Authorization**
 - ✅ Doctor-only email/password login via Firebase
@@ -717,15 +1012,33 @@ socket.on('update', (data) => {
 - ✅ Clinical-grade metrics & visualizations
 - ✅ Patient & scan details inclusion
 - ✅ Doctor annotation capability
+- ✅ Thermal imaging results with confidence scores
+- ✅ Genomic analysis integration (PRS, variants, genes)
 - ✅ Cloud storage integration
 
-### 6. **Dashboard & Analytics**
+### 6. **Genomic Analysis** 🧬
+- ✅ FASTQ file upload for patient sequences
+- ✅ Reference gene management (VEGF, MMP1, COL1A1, TNF, IL6)
+- ✅ Smith-Waterman sequence alignment algorithm
+- ✅ Variant detection (SNPs, INDELs, deletions)
+- ✅ Polygenic Risk Score (PRS) calculation with weighted genes
+- ✅ Risk categorization (LOW/MODERATE/HIGH)
+- ✅ Per-gene breakdown with alignment scores
+- ✅ Firestore persistence for genomic profiles
+- ✅ Genomic data in PDF reports
+
+### 7. **Fused Risk Analysis**
+- ✅ Thermal risk + Genomic PRS combination
+- ✅ Integrated clinical interpretation
+- ✅ Weighted risk scoring across modalities
+
+### 8. **Dashboard & Analytics**
 - ✅ Daily statistics (scans, high-risk cases, unique patients)
 - ✅ Recent scan history with status badges
 - ✅ Quick navigation & action buttons
 - ✅ System status monitoring
 
-### 7. **UI/UX**
+### 9. **UI/UX**
 - ✅ Biotech-themed design (orange/purple colors)
 - ✅ Animated DNA background
 - ✅ Responsive layout (desktop-optimized)
@@ -844,9 +1157,59 @@ Error: Firestore connection timeout
 firebase emulators:start
 ```
 
----
+#### 8. **Genomic Analysis - FASTQ Upload Fails**
 
-## 📈 Performance Optimization
+```
+Error: No valid sequences found in FASTQ file
+```
+
+**Solution**:
+1. Verify FASTQ file format is valid:
+   ```bash
+   # Should have @ headers, sequences, + lines, quality scores
+   head -20 your_file.fastq
+   ```
+2. Check file contains recognized gene names (VEGF, MMP1, COL1A1, TNF, IL6)
+3. Verify sequences contain only valid DNA bases (ATCGN)
+4. Check file size doesn't exceed 50MB
+
+#### 9. **Genomic Analysis - Zero PRS Score**
+
+```
+Result shows: PRS: 0, Risk Category: LOW
+```
+
+**Solution**:
+1. Verify genomic server is running (`/api/genomic/health` returns 200)
+2. Check reference genes are loaded:
+   ```bash
+   curl http://localhost:5050/api/genomic/reference-info
+   ```
+3. Verify patient sequences are not empty
+4. Check API response format in browser DevTools Network tab
+5. Ensure Firestore is receiving genomic_profile data
+
+#### 10. **Genomic Analysis - Reference Genes Not Loading**
+
+```
+Error: Reference sequence not found for VEGF
+```
+
+**Solution**:
+```bash
+# Verify FASTA files exist
+ls backend/genomic/refrence/
+
+# Should show: VEGF.fasta MMP1.fasta COL1A1.fasta TNF.fasta IL6.fasta
+
+# Check FASTA file format (must start with >)
+head -5 backend/genomic/refrence/VEGF.fasta
+# Should output:
+# >VEGF_reference_sequence
+# ATGAACTTTCTGCTGTCTT...
+```
+
+---
 
 ### Frontend
 
@@ -950,10 +1313,19 @@ Before deploying to production:
 
 ---
 
-**Last Updated**: May 9, 2026
+**Last Updated**: May 9, 2026 (Updated with Genomic Analysis System)
 
-**Status**: ✅ Production Ready
+**Status**: ✅ Production Ready with Integrated Genomic & Thermal Analysis
+
+**Features**: 
+- ✅ Real-time thermal imaging analysis (DeiT model)
+- ✅ Genomic analysis (Smith-Waterman alignment, PRS scoring)
+- ✅ Fused risk assessment
+- ✅ Comprehensive PDF reports
+- ✅ Firebase cloud integration
+- ✅ Doctor-only authentication
 
 ---
 
 *पैताला - Advancing Clinical Care Through AI Innovation*
+*Combining Thermal Imaging & Genomic Analysis for Comprehensive Diabetic Foot Ulcer Risk Assessment*

@@ -31,8 +31,10 @@ GENE_WEIGHTS = {
     "IL6":    0.10,
 }
 
-# Variant penalty — each variant contributes this much to locus risk
-VARIANT_PENALTY = 0.05
+# Variant penalty — each k-mer-level variant contributes this much to locus risk.
+# Note: One biological SNP typically generates ~k k-mer variants in a De Bruijn graph,
+# so this penalty is calibrated for k-mer-level counts, not individual SNP counts.
+VARIANT_PENALTY = 0.002
 
 # Risk category thresholds
 RISK_THRESHOLDS = {
