@@ -92,14 +92,16 @@ export default function DashboardPage() {
 
         {/* ── Header ─────────────────────────────────────────────────── */}
         <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
-          <div>
-            <p className="label" style={{ marginBottom: '0.35rem', color: 'var(--lavender)' }}>Thermascan AI · Clinical Portal</p>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem' }}>
+            <img src="/logo1.png" alt="पैताला" style={{ width: '6rem', height: '6rem', borderRadius: '6px', marginTop: '0.15rem', flexShrink: 0 }} />
+            <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-heading)', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
               Hello, Doctor!
             </h1>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
             <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

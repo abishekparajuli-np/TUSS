@@ -5,7 +5,7 @@ import React, { useEffect, useRef } from 'react';
   Small helices placed at fixed screen corners/edges in random orientations,
   each drifting in a slow ellipse and self-rotating.
   Tuned for the Soft Violet (#F5F3FF) background.
-  Colours: Emerald #10B981 + Lavender #A78BFA
+  Colours: Orange #FF9500 + Purple #7C3AED (matching पैताला logo)
 */
 
 const STRAND_CONFIGS = [
@@ -25,9 +25,9 @@ const STRAND_CONFIGS = [
   { ax: 0.65, ay: 0.72, rot: -Math.PI * 0.60, speed: 0.43, driftA: 4.3,  size: 0.78 }, // mid-lower-right
 ];
 
-// Emerald + Lavender — semi-transparent on violet bg
-const COL_A = '16, 185, 129';    // #10B981 emerald
-const COL_B = '167, 139, 250';   // #A78BFA lavender
+// Orange + Purple — matching पैताला logo colors
+const COL_A = '255, 149, 0';     // #FF9500 orange
+const COL_B = '124, 58, 237';    // #7C3AED purple
 
 const BASE_NODES  = 14;
 const BASE_RADIUS = 30;   // increased from 22
