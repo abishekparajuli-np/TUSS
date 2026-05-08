@@ -895,16 +895,6 @@ gunicorn -w 4 -b 0.0.0.0:5050 inference_server:app
 
 ---
 
-## 📞 Support & Contact
-
-For issues, questions, or feedback:
-
-- **GitHub Issues**: [Project Issues](https://github.com/yourproject/issues)
-- **Email**: [support@paitala.ai](mailto:support@paitala.ai)
-- **Documentation**: See `/docs` folder
-
----
-
 ## 📄 License
 
 This project is licensed under the MIT License - see `LICENSE` file for details.
