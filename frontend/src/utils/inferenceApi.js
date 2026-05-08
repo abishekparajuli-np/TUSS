@@ -11,6 +11,7 @@ export const inferenceApi = {
   startAnalysis: () => api.post('/start_analysis'),
   stopAnalysis: () => api.post('/stop_analysis'),
   getFinalResult: () => api.get('/final_result'),
+  getSnapshot: () => api.get('/snapshot'),
   healthCheck: () => api.get('/health'),
 };
 

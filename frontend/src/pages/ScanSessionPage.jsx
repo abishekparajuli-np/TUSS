@@ -144,6 +144,17 @@ export default function ScanSessionPage() {
       // Get AVERAGED results from the full 20s analysis window
       const finalResult = await inferenceApi.getFinalResult();
 
+      // Capture snapshot images (thermal frame + model input)
+      let thermalImage = '';
+      let modelInputImage = '';
+      try {
+        const snapshotRes = await inferenceApi.getSnapshot();
+        thermalImage = snapshotRes.data.thermal_frame || '';
+        modelInputImage = snapshotRes.data.model_input || '';
+      } catch (snapErr) {
+        console.warn('Snapshot capture failed:', snapErr.message);
+      }
+
       await setDoc(doc(db, 'scans', scanIdRef.current), {
         patientId,
         doctorId: currentUser.uid,
@@ -157,7 +168,8 @@ export default function ScanSessionPage() {
         edgeStrength: finalResult.data.edge_strength || 0,
         predictionHistory: finalResult.data.prediction_history || [],
         totalFramesAnalyzed: finalResult.data.total_frames_analyzed || 0,
-        modelInputImageUrl: '',
+        thermalImage,
+        modelInputImage,
       });
 
       toast.success('Scan data saved — averaged over ' + (finalResult.data.total_frames_analyzed || 0) + ' frames');
@@ -258,10 +270,16 @@ export default function ScanSessionPage() {
                 <div className="text-xs font-mono text-[#546e7a] mb-3">
                   MODEL INPUT PREVIEW
                 </div>
-                <div className="w-56 h-56 bg-black rounded border border-[rgba(0,255,200,0.15)] flex items-center justify-center">
-                  <span className="font-mono text-[#546e7a] text-xs">
-                    224×224 Input
-                  </span>
+                <div className="w-56 h-56 bg-black rounded border border-[rgba(0,255,200,0.15)] overflow-hidden relative">
+                  <img
+                    src={`${INFERENCE_SERVER_URL}/model_input_feed`}
+                    alt="Model Input 224x224"
+                    className="absolute inset-0 w-full h-full object-contain"
+                    style={{ imageRendering: 'auto' }}
+                  />
+                </div>
+                <div className="text-xs font-mono text-[#546e7a] mt-2 opacity-60">
+                  224×224 • COLORMAP_OCEAN • Live
                 </div>
               </div>
             </div>

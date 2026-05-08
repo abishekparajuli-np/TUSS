@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../utils/firebaseInit';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { inferenceApi } from '../utils/inferenceApi';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import StatusBadge from '../components/StatusBadge';
@@ -39,6 +40,22 @@ export default function ReportPage() {
         }
 
         const scan = scanDoc.data();
+
+        // If scan doesn't have images, try fetching live from backend
+        if (!scan.thermalImage || !scan.modelInputImage) {
+          try {
+            const snapshotRes = await inferenceApi.getSnapshot();
+            if (snapshotRes.data.thermal_frame) {
+              scan.thermalImage = snapshotRes.data.thermal_frame;
+            }
+            if (snapshotRes.data.model_input) {
+              scan.modelInputImage = snapshotRes.data.model_input;
+            }
+          } catch {
+            console.warn('Could not fetch live snapshot — backend may be offline');
+          }
+        }
+
         setScanData(scan);
 
         // Load patient data
@@ -61,6 +78,7 @@ export default function ReportPage() {
   const generatePDF = () => {
     try {
       const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       let yPosition = 10;
 
@@ -100,6 +118,55 @@ export default function ReportPage() {
 
       yPosition += 30;
 
+      // ---- THERMAL IMAGES SECTION ----
+      const thermalB64 = scanData?.thermalImage;
+      const modelInputB64 = scanData?.modelInputImage;
+
+      if (thermalB64 || modelInputB64) {
+        pdf.setFontSize(14);
+        pdf.setTextColor(0, 128, 100);
+        pdf.text('CAPTURED IMAGES', 10, yPosition);
+        yPosition += 8;
+
+        const imgWidth = 80;
+        const imgHeight = 60;
+
+        if (thermalB64 && thermalB64.length > 100) {
+          pdf.setFontSize(8);
+          pdf.setTextColor(80, 80, 80);
+          pdf.text('Thermal Camera Feed', 10, yPosition);
+          yPosition += 3;
+          try {
+            const thermalImg = new Image();
+            thermalImg.src = 'data:image/jpeg;base64,' + thermalB64;
+            pdf.addImage(thermalImg, 'JPEG', 10, yPosition, imgWidth, imgHeight);
+          } catch (e) {
+            console.error('Failed to add thermal image to PDF:', e);
+            pdf.setFontSize(8);
+            pdf.text('[Thermal image could not be embedded]', 10, yPosition + 10);
+          }
+        }
+
+        if (modelInputB64 && modelInputB64.length > 100) {
+          const modelX = thermalB64 ? 100 : 10;
+          const labelY = yPosition - 3;
+          pdf.setFontSize(8);
+          pdf.setTextColor(80, 80, 80);
+          pdf.text('Model Input (224x224)', modelX, labelY);
+          try {
+            const modelImg = new Image();
+            modelImg.src = 'data:image/jpeg;base64,' + modelInputB64;
+            pdf.addImage(modelImg, 'JPEG', modelX, yPosition, 60, 60);
+          } catch (e) {
+            console.error('Failed to add model input image to PDF:', e);
+          }
+        }
+
+        yPosition += imgHeight + 8;
+      } else {
+        console.warn('No images available for PDF. thermalImage:', !!scanData?.thermalImage, 'modelInputImage:', !!scanData?.modelInputImage);
+      }
+
       // AI Analysis Section
       pdf.setFontSize(14);
       pdf.setTextColor(0, 128, 100);
@@ -116,6 +183,12 @@ export default function ReportPage() {
       pdf.text(`Edge Strength: ${safeNum(scanData?.edgeStrength).toFixed(2)}`, 10, yPosition + 25);
 
       yPosition += 35;
+
+      // Check if we need a new page
+      if (yPosition > pageHeight - 60) {
+        pdf.addPage();
+        yPosition = 15;
+      }
 
       // Doctor Review Section
       pdf.setFontSize(14);
@@ -238,6 +311,37 @@ export default function ReportPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Captured Images */}
+              {(scanData?.thermalImage || scanData?.modelInputImage) && (
+                <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
+                  <div className="text-xs font-mono text-[#546e7a] mb-3">
+                    CAPTURED IMAGES
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {scanData?.thermalImage && (
+                      <div>
+                        <div className="text-xs font-mono text-[#546e7a] mb-1">Thermal Feed</div>
+                        <img
+                          src={`data:image/jpeg;base64,${scanData.thermalImage}`}
+                          alt="Thermal Camera Feed"
+                          className="w-full rounded border border-[rgba(0,255,200,0.2)]"
+                        />
+                      </div>
+                    )}
+                    {scanData?.modelInputImage && (
+                      <div>
+                        <div className="text-xs font-mono text-[#546e7a] mb-1">Model Input</div>
+                        <img
+                          src={`data:image/jpeg;base64,${scanData.modelInputImage}`}
+                          alt="Model Input 224x224"
+                          className="w-full rounded border border-[rgba(0,255,200,0.2)]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Thermal Risk Index */}
               <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
