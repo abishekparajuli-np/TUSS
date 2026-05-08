@@ -1,374 +1,951 @@
-# THERMASCAN AI - Clinical Dashboard
+# पैताला - AI-Powered Clinical Diabetic Foot Ulcer Risk Screening
 
-> Doctor-only clinical web application for diabetic foot ulcer risk screening using live thermal imaging and AI-powered analysis.
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Status](https://img.shields.io/badge/status-Production%20Ready-green)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-## 🏥 Overview
+> A sophisticated, doctor-only clinical web application leveraging real-time thermal imaging and deep learning AI models for automated diabetic foot ulcer risk prediction and clinical documentation.
 
-THERMASCAN AI integrates:
-- **Real-time thermal imaging** from medical-grade cameras
-- **DeiT ViT AI model** for automated ulcer risk prediction
-- **Firebase backend** for secure patient data management  
-- **Clinical-grade UI** with biotech aesthetics (teal accents, animated DNA background)
-- **PDF report generation** for clinical documentation
+## 📋 Table of Contents
 
-## 🏗️ Architecture
+- [Problem Statement](#problem-statement)
+- [Solution Overview](#solution-overview)
+- [Tech Stack](#tech-stack)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Installation & Setup](#installation--setup)
+- [Running the Application](#running-the-application)
+- [Configuration](#configuration)
+- [API Documentation](#api-documentation)
+- [Features](#features)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+
+---
+
+## 🏥 Problem Statement
+
+### Clinical Challenge
+
+Diabetic foot ulcers are a significant complication affecting millions of patients worldwide. Early detection is critical for prevention and treatment, but traditional visual inspection methods often miss early-stage thermal anomalies that precede visible ulcer formation.
+
+### Current Limitations
+
+- **Delayed Detection**: Manual inspection by healthcare providers can miss subtle thermal changes
+- **Inconsistency**: Diagnosis varies based on clinician experience
+- **Time-Consuming**: Physical examinations require significant healthcare provider time
+- **Limited Access**: Screening availability restricted to specialized clinics
+- **Documentation Gaps**: Lack of standardized, digitized clinical records
+
+### Proposed Solution
+
+**पैताला** (Paitala) provides:
+- **Real-time AI Analysis**: Instantaneous thermal imaging analysis using DeiT Deep Vision Transformer
+- **Clinical-Grade Accuracy**: 2-class classification (HEALTHY / ULCER RISK)
+- **Secure Documentation**: PDF report generation for clinical records
+- **Doctor-Only Access**: Role-based authentication for medical professionals only
+- **Complete Patient History**: Comprehensive patient profiles with scan timelines
+
+---
+
+## 💡 Solution Overview
+
+पैताला integrates cutting-edge thermal imaging technology with state-of-the-art deep learning to provide clinicians with:
+
+1. **Live Thermal Stream Processing**: Real-time MJPEG streaming from medical-grade thermal cameras
+2. **AI-Powered Risk Assessment**: Deep learning model inference on thermal frames
+3. **Clinical Dashboard**: Intuitive interface for patient management and scan history
+4. **Secure Data Management**: Firebase backend with role-based access control
+5. **Clinical Documentation**: Automated PDF report generation with detailed metrics
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| **React** | 18.2.0 | UI Framework |
+| **Vite** | 4.5.0 | Build tool & dev server |
+| **Tailwind CSS** | 3.3.3 | Utility-first CSS styling |
+| **React Router** | 6.16.0 | Client-side routing |
+| **Firebase SDK** | 10.4.0 | Authentication & Firestore |
+| **Axios** | 1.5.0 | HTTP client |
+| **Socket.io Client** | 4.7.2 | WebSocket communication |
+| **jsPDF** | 2.5.1 | PDF generation |
+| **html2canvas** | 1.4.1 | Screenshot capturing |
+| **React Hot Toast** | 2.4.1 | Toast notifications |
+
+### Backend
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| **Python** | 3.9+ | Server runtime |
+| **Flask** | 2.3.3 | Web framework |
+| **Flask-SocketIO** | 5.3.4 | WebSocket support |
+| **PyTorch** | 2.0.1 | Deep learning framework |
+| **TIMM** | 0.9.7 | PyTorch image models |
+| **OpenCV** | 4.8.1.78 | Image processing |
+| **NumPy** | 1.24.3 | Numerical computing |
+
+### Infrastructure
+| Technology | Purpose |
+|-----------|---------|
+| **Firebase** | Authentication, Firestore DB, Cloud Storage |
+| **Docker** | Containerization |
+| **Docker Compose** | Multi-service orchestration |
+
+### AI/ML
+| Component | Details |
+|-----------|---------|
+| **Model Architecture** | DeiT Small (Data-efficient Image Transformer) |
+| **Input Size** | 224×224 thermal images |
+| **Output Classes** | 2-class classification (HEALTHY / ULCER RISK) |
+| **Framework** | PyTorch + TIMM |
+
+---
+
+## 🏗️ System Architecture
 
 ```
-THERMASCAN AI
-├── Frontend (React + Tailwind)
-│   ├── Pages: Login, Dashboard, Registration, Scan, Report, Patient Profile
-│   ├── Components: Biotech UI (DNA background, status badges, metrics)
-│   └── Firebase Auth + Firestore integration
-├── Backend (Python Flask)
-│   ├── inference_server.py: Exposes DeiT model via REST API
-│   ├── WebSocket streaming: Live thermal frames
-│   └── Port: localhost:5050
-├── AI Model
-│   ├── deit_thermo_model.pth (pretrained DeiT Small)
-│   └── 224×224 input, 2-class output (HEALTHY/ULCER RISK)
-└── Infrastructure
-    ├── Firebase Firestore: patients, scans, reports, users
-    ├── Firebase Storage: PDFs, model inputs
-    └── Firebase Auth: Doctor-only access
+┌─────────────────────────────────────────────────────────┐
+│              THERMASCAN AI SYSTEM ARCHITECTURE          │
+└─────────────────────────────────────────────────────────┘
+
+                        CLIENT LAYER
+                    ┌─────────────────┐
+                    │   Web Browser   │
+                    │   (React 18)    │
+                    └────────┬────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+    REST API            WebSocket            Firebase
+   (HTTP)            (Live Frames)          (Auth/DB)
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│ Flask API    │   │ Stream Handler   │ Authentication
+│ (Port 5050)  │   │ (Port 5050)      │ & Firestore
+└──────┬───────┘   └──────┬───────┘   └──────────────┘
+       │                  │
+       └──────────┬───────┘
+                  │
+         ┌────────▼────────┐
+         │  DeiT Model     │
+         │  Inference      │
+         │  Pipeline       │
+         └────────────────┘
+                  │
+         ┌────────▼────────┐
+         │ Thermal Camera  │
+         │ Stream (MJPEG)  │
+         └─────────────────┘
+
+        DATABASE LAYER
+       ┌──────────────────┐
+       │ Firebase         │
+       │ ├─ Firestore DB  │
+       │ ├─ Cloud Storage │
+       │ ├─ Auth          │
+       │ └─ Rules Engine  │
+       └──────────────────┘
 ```
 
-## 📋 Features
+### Data Flow
 
-### Authentication
-- **Doctor-only login** (email/password via Firebase Auth)
-- **No self-registration** (admin-provisioned accounts)
-- **Protected routes** - unauthenticated users redirected to login
+```
+1. Doctor Login
+   Browser → Firebase Auth → JWT Token
 
-### Patient Management
-- **Registration form** with clinical history
-- **Patient profiles** with scan timeline
-- **Medical history tracking** (diabetes type, duration, foot conditions)
+2. Patient Registration
+   Browser (Form) → Firebase (Firestore) → Patient Record
 
-### Live Thermal Scanning
-- **Real-time MJPEG stream** from thermal camera
-- **Live AI inference** (polling /status every 500ms)
-- **20-second analysis window** with countdown timer
-- **Prediction buffer visualization** (60-frame history)
-- **Thermal risk index bar** (teal → red gradient)
+3. Live Scan Analysis (20-second window)
+   Thermal Camera → MJPEG Stream → Backend WebSocket
+   Backend → DeiT Model → Prediction Buffer → Frontend
+   Frontend (Real-time UI Updates) → Doctor Review
 
-### AI Analysis
-- **Status**: HEALTHY, ULCER RISK, ANALYZING, UNCERTAIN, NO FOOT
-- **Confidence**: 0.00 - 1.00 probability
-- **Metrics**: Asymmetry, variance, edge strength, FPS
-- **Bounding box + hotspot detection** overlaid on stream
+4. Report Generation
+   Scan Results → PDF Generator → Firebase Storage → Download
 
-### Report Generation
-- **Client-side PDF generation** (jsPDF)
-- **Comprehensive report** with AI analysis, doctor remarks, diagnosis
-- **Firebase Storage upload** for archiving
-- **Firestore metadata** for patient history
-
-### Dashboard
-- **Today's stats**: Total scans, high-risk cases, patients seen
-- **Recent scans** with quick links to reports
-- **System status** indicators
-
-## 🚀 Quick Start
-
-### Prerequisites
-- **Node.js** 18+
-- **Python** 3.9+
-- **Firebase** project (Firestore, Storage, Auth enabled)
-- **Thermal camera** with RTSP/MJPEG stream
-
-### 1. Backend Setup
-
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/Scripts/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure stream URL
-# Edit inference_server.py line 23: STREAM_URL = "your_rtsp_url"
-
-# Run inference server
-python inference_server.py
-# Server runs on http://localhost:5050
+5. Patient History
+   Browser → Firebase Query → Recent Scans → Display
 ```
 
-### 2. Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Configure Firebase
-# Copy .env.example to .env.local and add Firebase credentials
-cp .env.example .env.local
-
-# Add to .env.local:
-# REACT_APP_FIREBASE_API_KEY=...
-# REACT_APP_FIREBASE_AUTH_DOMAIN=...
-# REACT_APP_FIREBASE_PROJECT_ID=...
-# etc.
-
-# Start development server
-npm start
-# Frontend runs on http://localhost:3000
-```
-
-### 3. Firebase Setup
-
-```bash
-# Install Firebase CLI
-npm install -g firebase-tools
-
-# Login
-firebase login
-
-# Initialize project
-firebase init
-
-# Deploy security rules
-firebase deploy --only firestore:rules,storage
-```
-
-### 4. Create Doctor Account
-
-In Firebase Console:
-1. Go to **Authentication** > **Users**
-2. Click **Add User** (email/password)
-3. Go to **Firestore** > **users** collection
-4. Create document with ID = user UID
-5. Add field: `role: "doctor"` and `clinic: "Your Clinic"`
+---
 
 ## 📁 Project Structure
 
 ```
-TUSS/
-├── backend/
-│   ├── inference_server.py       # Flask + WebSocket + PyTorch
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── pages/               # React pages
+पैताला/
+├── 📁 frontend/                      # React Frontend Application
+│   ├── 📁 src/
+│   │   ├── 📁 pages/                # Page components (6 pages)
 │   │   │   ├── LoginPage.jsx
 │   │   │   ├── DashboardPage.jsx
 │   │   │   ├── PatientRegistrationPage.jsx
 │   │   │   ├── ScanSessionPage.jsx
 │   │   │   ├── ReportPage.jsx
 │   │   │   └── PatientProfilePage.jsx
-│   │   ├── components/          # Reusable UI components
+│   │   ├── 📁 components/           # Reusable components
 │   │   │   ├── DNABackground.jsx
 │   │   │   ├── DNABackgroundCanvas.jsx
 │   │   │   ├── StatusBadge.jsx
 │   │   │   ├── ThermalRiskBar.jsx
-│   │   │   ├── MetricDisplay.jsx
-│   │   │   └── PredictionBuffer.jsx
-│   │   ├── context/
-│   │   │   └── AuthContext.jsx  # Firebase Auth + Protected routes
-│   │   ├── utils/
+│   │   │   ├── PredictionBuffer.jsx
+│   │   │   └── MetricDisplay.jsx
+│   │   ├── 📁 context/              # React Context (Auth)
+│   │   │   └── AuthContext.jsx
+│   │   ├── 📁 utils/                # Utility functions
 │   │   │   ├── firebaseInit.js
-│   │   │   ├── inferenceApi.js  # Axios client for backend
+│   │   │   ├── inferenceApi.js
 │   │   │   └── ProtectedRoute.jsx
-│   │   ├── styles/
-│   │   │   └── globals.css      # Tailwind + biotech theme
-│   │   ├── App.jsx              # Router + Auth provider
+│   │   ├── 📁 config/               # Configuration
+│   │   │   └── firebase.js
+│   │   ├── 📁 styles/               # Global styles
+│   │   │   └── globals.css
+│   │   ├── App.jsx                  # Main App component
+│   │   ├── main.jsx                 # Entry point
 │   │   └── index.jsx
-│   ├── public/
+│   ├── 📁 public/                   # Static assets
+│   │   ├── logo1.png                # Project logo (navbar)
+│   │   ├── logo2.png                # Favicon (title bar)
 │   │   └── index.html
 │   ├── package.json
-│   ├── tailwind.config.js
 │   ├── vite.config.js
-│   └── .env.example
-├── firestore.rules              # Security rules
-├── storage.rules
-├── firestore.indexes.json
-├── firebase.json
-└── README.md
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   ├── Dockerfile
+│   └── .env.local (required)
+│
+├── 📁 backend/                      # Python Flask Backend
+│   ├── inference_server.py          # Main API server
+│   ├── deit_thermo_model.pth        # AI Model (PyTorch)
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── 📁 build/                    # Build output
+│
+├── 📁 firebase/                     # Firebase Configuration
+│   ├── firebase.json
+│   ├── firestore.indexes.json
+│   ├── firestore.rules
+│   └── storage.rules
+│
+├── docker-compose.yml               # Docker Compose configuration
+├── setup.sh                         # Linux/Mac setup script
+├── setup.bat                        # Windows setup script
+├── serviceAccountKey.json           # Firebase service account
+│
+└── 📄 Documentation
+    ├── README.md                    # This file
+    ├── ARCHITECTURE.md
+    ├── CONFIGURATION.md
+    ├── DEVELOPMENT.md
+    └── QUICK_START.md
 ```
-
-## 🎨 Design System
-
-### Color Palette
-```
-Background: #050d1a (near-black navy)
-Surface:    #0a1628 (dark blue-gray)
-Accent:     #00ffc8 (bioluminescent teal)
-Secondary:  #0080ff (electric blue)
-Danger:     #ff4b6e (coral red)
-Success:    #00e676 (lime green)
-Text:       #e0f7fa (cool white)
-Muted:      #546e7a (slate)
-```
-
-### Fonts
-- **Data/Metrics**: IBM Plex Mono (monospace)
-- **Body Text**: Inter (sans-serif)
-
-### Visual Elements
-- **Animated DNA helix** background (sine-wave strands + rungs)
-- **Glowing cards** with subtle box-shadow
-- **Teal borders + text** for interactive elements
-- **Status badges** color-coded (green/red/amber/blue)
-- **Thermal risk bar** with gradient (teal → red)
-
-## 🔌 API Reference
-
-### Inference Server (Python Backend)
-
-#### GET /status
-```json
-{
-  "status": "HEALTHY",
-  "confidence": 0.87,
-  "risk_score": 42.3,
-  "asymmetry": 3.1,
-  "variance": 120.5,
-  "edge_strength": 8.2,
-  "fps": 24.1,
-  "buffer_length": 45,
-  "prediction_history": [0, 0, 1, 0, ...]
-}
-```
-
-#### POST /start_analysis
-Triggers 20-second analysis window
-
-#### POST /stop_analysis
-Stops current analysis
-
-#### GET /final_result
-Returns locked analysis result
-
-#### WebSocket ws://localhost:5050/stream
-Sends MJPEG frames in real-time
-
-## 📊 Firestore Schema
-
-```
-/users/{userId}
-  ├── name: string
-  ├── email: string
-  ├── role: "doctor" (enum)
-  └── clinic: string
-
-/patients/{patientId}
-  ├── name: string
-  ├── mrn: string
-  ├── dob: string (YYYY-MM-DD)
-  ├── diabetesType: "Type 1" | "Type 2" | "Gestational" | "Other"
-  ├── duration: number (years)
-  ├── conditions: string[] (multiselect)
-  ├── notes: string
-  ├── createdAt: timestamp
-  └── doctorId: string (FK to users)
-
-/scans/{scanId}
-  ├── patientId: string (FK)
-  ├── doctorId: string (FK)
-  ├── startedAt: timestamp
-  ├── completedAt: timestamp
-  ├── status: "HEALTHY" | "ULCER RISK" | ...
-  ├── confidence: number (0-1)
-  ├── riskScore: number (0-100)
-  ├── asymmetry: number
-  ├── variance: number
-  ├── edgeStrength: number
-  ├── predictionHistory: number[]
-  └── modelInputImageUrl: string
-
-/reports/{scanId}
-  ├── patientId: string (FK)
-  ├── doctorId: string (FK)
-  ├── generatedAt: timestamp
-  ├── doctorRemarks: string
-  ├── finalDiagnosis: string
-  ├── treatmentPlan: string
-  ├── doctorSignature: string
-  ├── pdfUrl: string (Firebase Storage URL)
-  └── aiSummary: string
-```
-
-## 🔐 Security
-
-- **Firebase Auth** + email/password for doctors
-- **Firestore Rules** restrict data access to own records
-- **Storage Rules** limit file sizes (50MB PDFs, 10MB images)
-- **No self-registration** - admin-provisioned only
-- **Audit trail** - deletion prevented, timestamps recorded
-
-## 📱 Responsiveness
-
-- **Desktop**: Full 2-column layout (thermal stream + metrics)
-- **Tablet** (1024px+): Optimized for bedside use
-- **Mobile**: Stacked single-column, touch-friendly buttons
-
-## ⚠️ Important Notes
-
-1. **Thermal Camera Setup**
-   - Update `STREAM_URL` in `inference_server.py`
-   - Support RTSP/MJPEG streams
-   - Credentials embedded in URL (update security as needed)
-
-2. **Model Path**
-   - Ensure `deit_thermo_model.pth` is in `backend/` directory
-   - Model: DeiT Small (deit_small_patch16_224), 2-class output
-
-3. **Firebase Credentials**
-   - Never commit `.env.local` files
-   - Use `.env.example` as template
-   - Add to `.gitignore`
-
-4. **WebSocket Connection**
-   - Frontend polls `/status` every 500ms (not WebSocket)
-   - Can upgrade to socket.io for live streaming if needed
-
-5. **PDF Generation**
-   - Client-side jsPDF (works offline after initial load)
-   - Alternative: Firebase Cloud Function for server-side generation
-
-## 🚀 Deployment
-
-### Frontend (Vercel / Netlify)
-```bash
-npm run build
-# Deploy dist/ folder
-```
-
-### Backend (Heroku / Railway / AWS)
-```bash
-python inference_server.py
-# Ensure STREAM_URL and MODEL_PATH are set via environment
-```
-
-### Firebase
-```bash
-firebase deploy
-```
-
-## 📈 Future Enhancements
-
-- [ ] Real-time WebSocket instead of polling
-- [ ] Batch patient scan export
-- [ ] Advanced analytics dashboard
-- [ ] Model retraining pipeline
-- [ ] Multi-clinic support
-- [ ] Appointment scheduling integration
-- [ ] Push notifications
-- [ ] Video recording during scans
-
-## 📝 License
-
-Internal Use - HIPAA Compliant
-
-## 🤝 Support
-
-For issues or questions, contact: [support@thermascan.ai](mailto:support@thermascan.ai)
 
 ---
 
-**Last Updated**: January 2025  
-**Maintained By**: Clinical Engineering Team
+## 📦 Prerequisites
+
+### System Requirements
+
+- **OS**: Windows 10+, macOS 10.15+, or Linux (Ubuntu 20.04+)
+- **RAM**: Minimum 8GB (16GB recommended for AI inference)
+- **Disk Space**: 5GB free space
+- **Network**: Stable internet connection for Firebase
+- **Camera**: Medical-grade thermal camera (MJPEG stream capable)
+
+### Software Requirements
+
+- **Node.js**: v16.0.0 or higher
+- **npm**: v8.0.0 or higher
+- **Python**: 3.9 or higher
+- **pip**: Package manager for Python
+- **Docker** (optional): v20.10+ for containerized deployment
+- **Docker Compose** (optional): v1.29+ for multi-service setup
+
+### Firebase Setup
+
+1. Create Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable Authentication (Email/Password)
+3. Create Firestore Database (production mode with security rules)
+4. Create Cloud Storage bucket
+5. Download service account key JSON file
+6. Get Firebase config from project settings
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/paitala.git
+cd paitala
+```
+
+### 2. Backend Setup (Python)
+
+#### Install Python Dependencies
+
+```bash
+cd backend
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# macOS/Linux
+source venv/bin/activate
+
+# Install packages
+pip install -r requirements.txt
+```
+
+#### Verify Model File
+
+```bash
+# Ensure deit_thermo_model.pth exists in backend/
+ls backend/deit_thermo_model.pth
+# or on Windows: dir backend\deit_thermo_model.pth
+```
+
+### 3. Frontend Setup (React)
+
+```bash
+cd frontend
+npm install
+```
+
+#### Create Environment File
+
+```bash
+# In frontend/ directory
+cp .env.example .env.local
+```
+
+Update `.env.local` with your Firebase credentials:
+
+```env
+# Firebase Configuration
+REACT_APP_FIREBASE_API_KEY=your_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+
+# Backend API
+REACT_APP_INFERENCE_SERVER=http://localhost:5050
+```
+
+### 4. Firebase Configuration
+
+#### Download Service Account Key
+
+1. Go to Firebase Console → Project Settings → Service Accounts
+2. Click "Generate New Private Key"
+3. Save as `serviceAccountKey.json` in project root
+
+#### Deploy Firestore Rules & Indexes
+
+```bash
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+
+# Deploy rules
+firebase deploy --only firestore:rules
+
+# Deploy indexes
+firebase deploy --only firestore:indexes
+```
+
+### 5. Configure Backend
+
+Edit `backend/inference_server.py`:
+
+```python
+# Line 23 - Update thermal camera stream URL
+STREAM_URL = "http://admin:12345@192.168.79.148:8081/live.flv"  # ← Your camera stream URL
+
+# Line 24 - Verify model path
+MODEL_PATH = "deit_thermo_model.pth"
+
+# Line 25 - Server port
+PORT = 5050
+```
+
+---
+
+## 🚀 Running the Application
+
+### Option 1: Local Development (Recommended)
+
+#### Terminal 1 - Start Backend API Server
+
+```bash
+cd backend
+
+# Windows
+venv\Scripts\activate
+
+# macOS/Linux
+source venv/bin/activate
+
+# Start Flask server
+python inference_server.py
+
+# Expected output:
+# * Running on http://127.0.0.1:5050
+# [INFO] DeiT model loaded successfully
+```
+
+#### Terminal 2 - Start Frontend Dev Server
+
+```bash
+cd frontend
+npm start
+
+# Expected output:
+# VITE v4.5.0 ready in XXX ms
+# Local:   http://localhost:5173/
+# Press h to show help
+```
+
+#### Access Application
+
+Open browser and navigate to:
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:5050
+- **Firebase Console**: https://console.firebase.google.com
+
+### Option 2: Docker Deployment (Production)
+
+#### Build & Run with Docker Compose
+
+```bash
+# Build images
+docker-compose build
+
+# Start services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+**Service URLs**:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5050
+- Check health: http://localhost:5050/health
+
+#### Individual Container Commands
+
+```bash
+# Build backend
+docker build -t paitala-backend ./backend
+
+# Build frontend
+docker build -t paitala-frontend ./frontend
+
+# Run backend
+docker run -p 5050:5050 \
+  -e STREAM_URL="http://..." \
+  -v ./backend/deit_thermo_model.pth:/app/deit_thermo_model.pth \
+  paitala-backend
+
+# Run frontend
+docker run -p 3000:80 \
+  -e REACT_APP_INFERENCE_SERVER=http://backend:5050 \
+  paitala-frontend
+```
+
+---
+
+## 🔧 Configuration
+
+### Frontend Configuration
+
+**Location**: `frontend/.env.local`
+
+```env
+# Firebase Configuration (Required)
+REACT_APP_FIREBASE_API_KEY=AIzaSy...
+REACT_APP_FIREBASE_AUTH_DOMAIN=project.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=project-id
+REACT_APP_FIREBASE_STORAGE_BUCKET=project.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=123456789
+REACT_APP_FIREBASE_APP_ID=1:123:web:abc123
+
+# Backend Inference Server (Default: local development)
+REACT_APP_INFERENCE_SERVER=http://localhost:5050
+```
+
+### Backend Configuration
+
+**Location**: `backend/inference_server.py` (Lines 20-30)
+
+```python
+# ──── Configuration ────
+STREAM_URL = "http://admin:12345@192.168.79.148:8081/live.flv"  # Thermal camera stream
+MODEL_PATH = "deit_thermo_model.pth"                             # AI model file
+PORT = 5050                                                      # Flask server port
+ANALYSIS_WINDOW = 20                                             # Analysis duration (seconds)
+BUFFER_SIZE = 60                                                 # Frame buffer size
+CONFIDENCE_THRESHOLD = 0.5                                       # Prediction threshold
+```
+
+### Firebase Configuration
+
+**Location**: `firebase.json`
+
+```json
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}
+```
+
+**Security Rules**: See `firestore.rules` and `storage.rules` for access control
+
+---
+
+## 📡 API Documentation
+
+### Backend REST API (Flask)
+
+#### Base URL: `http://localhost:5050`
+
+### Endpoints
+
+#### 1. **Health Check**
+
+```http
+GET /health
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "healthy",
+  "model": "loaded",
+  "stream": "connected"
+}
+```
+
+---
+
+#### 2. **Start Analysis**
+
+```http
+POST /start_analysis
+Content-Type: application/json
+
+{
+  "patientId": "patient_123",
+  "duration": 20
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "analysis_started",
+  "duration": 20,
+  "frameCount": 0
+}
+```
+
+---
+
+#### 3. **Get Current Status**
+
+```http
+GET /status
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "running",
+  "frameCount": 45,
+  "elapsedTime": 9.2,
+  "prediction": 0.87,
+  "riskLevel": "HIGH",
+  "temperature": 32.5
+}
+```
+
+---
+
+#### 4. **Stop Analysis**
+
+```http
+POST /stop_analysis
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "analysis_stopped",
+  "finalResult": {
+    "classification": "ULCER RISK",
+    "confidence": 0.89,
+    "avgTemp": 32.1
+  }
+}
+```
+
+---
+
+#### 5. **Get Final Result**
+
+```http
+GET /final_result
+```
+
+**Response** (200 OK):
+```json
+{
+  "status": "ULCER RISK",
+  "confidence": 0.89,
+  "risk_score": 85,
+  "framesCaptured": 60,
+  "analysisTime": 20.3,
+  "avgTemperature": 32.1,
+  "maxTemperature": 35.8,
+  "timestamp": "2024-05-09T14:30:00Z"
+}
+```
+
+---
+
+### WebSocket Endpoints
+
+#### Stream Connection
+
+```javascript
+// Client-side JavaScript
+const socket = io('http://localhost:5050');
+
+// Listen for frames
+socket.on('frame', (data) => {
+  // data: {
+  //   image: base64_string,
+  //   timestamp: ms,
+  //   prediction: float
+  // }
+});
+
+// Listen for analysis updates
+socket.on('update', (data) => {
+  // data: {
+  //   frameCount: int,
+  //   prediction: float,
+  //   temperature: float
+  // }
+});
+```
+
+---
+
+## ✨ Features
+
+### 1. **Authentication & Authorization**
+- ✅ Doctor-only email/password login via Firebase
+- ✅ JWT token-based session management
+- ✅ Protected routes with role-based access
+- ✅ Auto logout on token expiration
+
+### 2. **Patient Management**
+- ✅ Comprehensive patient registration form
+- ✅ Medical history tracking (diabetes type, duration, complications)
+- ✅ Patient profiles with scan timeline
+- ✅ Search & filter patient database
+- ✅ Patient edit & update capabilities
+
+### 3. **Live Thermal Scanning**
+- ✅ Real-time MJPEG stream from thermal camera
+- ✅ Live AI inference with 20-second analysis window
+- ✅ Real-time metric display (confidence, temperature, risk score)
+- ✅ 60-frame prediction buffer visualization
+- ✅ Countdown timer & progress indicators
+
+### 4. **AI Analysis**
+- ✅ DeiT Small Vision Transformer model
+- ✅ 2-class classification (HEALTHY / ULCER RISK)
+- ✅ Real-time predictions (500ms polling)
+- ✅ Confidence scoring (0-100%)
+- ✅ Risk level categorization (LOW/MEDIUM/HIGH)
+
+### 5. **Report Generation**
+- ✅ Automated PDF report generation
+- ✅ Clinical-grade metrics & visualizations
+- ✅ Patient & scan details inclusion
+- ✅ Doctor annotation capability
+- ✅ Cloud storage integration
+
+### 6. **Dashboard & Analytics**
+- ✅ Daily statistics (scans, high-risk cases, unique patients)
+- ✅ Recent scan history with status badges
+- ✅ Quick navigation & action buttons
+- ✅ System status monitoring
+
+### 7. **UI/UX**
+- ✅ Biotech-themed design (orange/purple colors)
+- ✅ Animated DNA background
+- ✅ Responsive layout (desktop-optimized)
+- ✅ Dark mode color scheme
+- ✅ Toast notifications for user feedback
+- ✅ Loading states & error boundaries
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues & Solutions
+
+#### 1. **Backend Server Won't Start**
+
+```
+Error: Address already in use
+```
+
+**Solution**:
+```bash
+# Find process using port 5050
+lsof -i :5050                          # macOS/Linux
+netstat -ano | findstr :5050           # Windows
+
+# Kill the process and restart
+kill -9 <PID>                          # macOS/Linux
+taskkill /PID <PID> /F                # Windows
+
+# Try different port
+python inference_server.py --port 5051
+```
+
+#### 2. **CORS Errors**
+
+```
+Access to XMLHttpRequest blocked by CORS
+```
+
+**Solution**: Backend Flask CORS is pre-configured. Verify:
+```python
+# In inference_server.py
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+```
+
+#### 3. **Model Loading Failed**
+
+```
+Error: Model file not found (deit_thermo_model.pth)
+```
+
+**Solution**:
+```bash
+# Verify file exists
+ls -la backend/deit_thermo_model.pth
+
+# Download from storage if missing
+# Place in backend/ directory and restart
+```
+
+#### 4. **Firebase Connection Issues**
+
+```
+Error: Cannot read property 'currentUser' of null
+```
+
+**Solution**:
+1. Verify `.env.local` contains correct Firebase credentials
+2. Check Firebase project is active in console
+3. Verify internet connection
+4. Check Firebase security rules allow read/write
+
+#### 5. **Thermal Camera Stream Not Connecting**
+
+```
+Error: Failed to connect to STREAM_URL
+```
+
+**Solution**:
+```bash
+# Verify camera is online
+ping 192.168.79.148
+
+# Test stream URL directly in browser
+http://admin:12345@192.168.79.148:8081/live.flv
+
+# Update STREAM_URL in backend/inference_server.py
+STREAM_URL = "http://admin:password@camera_ip:port/stream_path"
+```
+
+#### 6. **Frontend Blank/White Screen**
+
+**Solution**:
+```bash
+# Clear npm cache & reinstall
+rm -rf node_modules package-lock.json
+npm install
+
+# Clear browser cache (Ctrl+Shift+Delete)
+# Restart dev server
+npm start
+```
+
+#### 7. **Database Connection Timeout**
+
+```
+Error: Firestore connection timeout
+```
+
+**Solution**:
+- Verify internet connection
+- Check Firebase project exists & is active
+- Verify serviceAccountKey.json is valid
+- Try Firebase emulator for local development:
+```bash
+firebase emulators:start
+```
+
+---
+
+## 📈 Performance Optimization
+
+### Frontend
+
+```bash
+# Build optimized production bundle
+cd frontend
+npm run build
+
+# Analyze bundle size
+npm run build -- --analyze
+```
+
+### Backend
+
+```bash
+# Use Gunicorn for production
+pip install gunicorn
+
+# Run with multiple workers
+gunicorn -w 4 -b 0.0.0.0:5050 inference_server:app
+```
+
+---
+
+## 🤝 Contributing
+
+### Development Workflow
+
+1. **Create feature branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make changes** and test locally
+
+3. **Commit with meaningful messages**
+   ```bash
+   git commit -m "feat: add thermal calibration feature"
+   ```
+
+4. **Push to branch**
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+5. **Create Pull Request** with description
+
+### Code Standards
+
+- **Frontend**: ESLint, Prettier (JavaScript/JSX)
+- **Backend**: PEP 8 (Python)
+- **Commits**: Conventional Commits format
+- **Testing**: Unit tests required for new features
+
+---
+
+## 📚 Additional Resources
+
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [React Documentation](https://react.dev)
+- [PyTorch Documentation](https://pytorch.org/docs)
+- [DeiT Paper](https://arxiv.org/abs/2012.12556)
+- [Vite Documentation](https://vitejs.dev)
+
+---
+
+## 📞 Support & Contact
+
+For issues, questions, or feedback:
+
+- **GitHub Issues**: [Project Issues](https://github.com/yourproject/issues)
+- **Email**: [support@paitala.ai](mailto:support@paitala.ai)
+- **Documentation**: See `/docs` folder
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see `LICENSE` file for details.
+
+---
+
+## ✅ Deployment Checklist
+
+Before deploying to production:
+
+- [ ] All environment variables configured
+- [ ] Firebase security rules reviewed & deployed
+- [ ] Backend model file verified (deit_thermo_model.pth)
+- [ ] Thermal camera stream URL tested
+- [ ] Frontend build tested locally
+- [ ] API endpoints tested with real data
+- [ ] Error handling & logging configured
+- [ ] SSL/TLS certificates installed (HTTPS)
+- [ ] Database backups configured
+- [ ] Monitoring & alerting setup
+- [ ] Documentation updated
+- [ ] Team trained on system usage
+
+---
+
+## 🔐 Security Considerations
+
+- **Authentication**: JWT tokens with expiration
+- **Authorization**: Role-based access control (Firestore rules)
+- **Data Encryption**: HTTPS/TLS for all communications
+- **Database Security**: Firebase security rules enforced
+- **API Security**: CORS configured, rate limiting recommended
+- **Secrets Management**: Use environment variables (never commit secrets)
+- **Model Protection**: Model file permissions restricted
+
+---
+
+**Last Updated**: May 9, 2026
+
+**Status**: ✅ Production Ready
+
+---
+
+*पैताला - Advancing Clinical Care Through AI Innovation*
