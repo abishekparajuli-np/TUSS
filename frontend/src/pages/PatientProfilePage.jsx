@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import StatusBadge from '../components/StatusBadge';
 import ThermalRiskBar from '../components/ThermalRiskBar';
+import GenomicRiskPanel from '../components/GenomicRiskPanel';
 
 const safeNum = (val, fallback = 0) => {
   const n = Number(val);
@@ -258,6 +259,11 @@ export default function PatientProfilePage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Genomic Risk Analysis Panel */}
+        <div style={{ marginBottom: '2rem' }}>
+          <GenomicRiskPanel patientId={patientId} />
         </div>
 
         {/* Scan Timeline */}

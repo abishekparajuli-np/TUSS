@@ -1,7 +1,8 @@
 """
 THERMASCAN AI — Python Inference Server
 Exposes DeiT ViT model via REST API for real-time thermal imaging analysis.
-Video stream delivered via MJPEG over HTTP (no WebSocket needed).
+Includes genomic analysis capabilities for diabetic foot ulcer risk assessment.
+Video stream delivered via MJPEG over HTTP.
 Runs on http://localhost:5050
 """
 
@@ -23,6 +24,7 @@ import logging
 STREAM_URL = "http://admin:12345@192.168.79.148:8081/live.flv"  # Replace with actual
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "deit_thermo_model.pth")
+GENOMIC_REF_DIR = os.path.join(BASE_DIR, "genomic", "refrence")
 ANALYSIS_WINDOW = 20  # seconds
 BUFFER_SIZE = 60
 PORT = 5050
@@ -523,6 +525,16 @@ def health():
 
 # ====================== MAIN ======================
 if __name__ == '__main__':
+    # Initialize Genomic API
+    try:
+        from genomic import create_genomic_api
+        create_genomic_api(app)
+        logger.info("✓ Genomic analysis API initialized at /api/genomic/*")
+    except ImportError as e:
+        logger.warning(f"⚠ Genomic module not available: {e}")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize genomic API: {e}")
+
     # Start capture thread
     capture_thread = threading.Thread(target=capture_thermal_stream, daemon=True)
     capture_thread.start()
@@ -532,5 +544,8 @@ if __name__ == '__main__':
     analysis_thread.start()
 
     logger.info(f"Starting THERMASCAN inference server on port {PORT}")
+    logger.info(f"Available endpoints:")
+    logger.info(f"  Thermal imaging: http://localhost:{PORT}/status")
+    logger.info(f"  Genomic analysis: http://localhost:{PORT}/api/genomic/health")
     # Use threaded=True for MJPEG streaming support
     app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)

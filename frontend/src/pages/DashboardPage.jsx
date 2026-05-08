@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
+import { genomicApi } from '../utils/genomicApi';
 
 const safeNum = (val, fb = 0) => { const n = Number(val); return isNaN(n) ? fb : n; };
 
@@ -24,6 +25,22 @@ export default function DashboardPage() {
   const [patients, setPatients] = useState([]);
   const [showPatients, setShowPatients] = useState(false);
   const [search, setSearch] = useState('');
+  const [genomicServerOk, setGenomicServerOk] = useState(false);
+
+  // Check genomic server health
+  useEffect(() => {
+    const checkGenomicHealth = async () => {
+      try {
+        const res = await genomicApi.healthCheck();
+        setGenomicServerOk(res.data?.status === 'ok');
+      } catch {
+        setGenomicServerOk(false);
+      }
+    };
+    checkGenomicHealth();
+    const interval = setInterval(checkGenomicHealth, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -250,6 +267,7 @@ export default function DashboardPage() {
                   { label: 'Database',        ok: true  },
                   { label: 'Auth service',     ok: true  },
                   { label: 'Inference server', ok: false },
+                  { label: 'Genomic server',   ok: genomicServerOk },
                 ].map(({ label, ok }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{label}</span>

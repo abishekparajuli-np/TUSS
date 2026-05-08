@@ -9,6 +9,10 @@ import jsPDF from 'jspdf';
 import StatusBadge from '../components/StatusBadge';
 import ThermalRiskBar from '../components/ThermalRiskBar';
 import PredictionBuffer from '../components/PredictionBuffer';
+import GenomicRiskPanel from '../components/GenomicRiskPanel';
+import { genomicApi } from '../utils/genomicApi';
+
+const GENE_ORDER = ['VEGF', 'MMP1', 'COL1A1', 'TNF', 'IL6'];
 
 export default function ReportPage() {
   const { scanId } = useParams();
@@ -17,6 +21,7 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true);
   const [scanData, setScanData] = useState(null);
   const [patientData, setPatientData] = useState(null);
+  const [genomicData, setGenomicData] = useState(null);
   const [doctorRemarks, setDoctorRemarks] = useState('');
   const [finalDiagnosis, setFinalDiagnosis] = useState('');
   const [treatmentPlan, setTreatmentPlan] = useState('');
@@ -62,7 +67,21 @@ export default function ReportPage() {
         if (scan.patientId) {
           const patientDoc = await getDoc(doc(db, 'patients', scan.patientId));
           if (patientDoc.exists()) {
-            setPatientData(patientDoc.data());
+            const pData = patientDoc.data();
+            setPatientData(pData);
+
+            // Load genomic profile if it exists
+            if (pData.genomic_profile) {
+              setGenomicData(pData.genomic_profile);
+            } else {
+              // Try fetching from genomic server
+              try {
+                const gRes = await genomicApi.getGenomicProfile(scan.patientId);
+                setGenomicData(gRes.data.genomic_profile || null);
+              } catch {
+                // No genomic data available — that's okay
+              }
+            }
           }
         }
       } catch (error) {
@@ -193,6 +212,75 @@ export default function ReportPage() {
           catch { pdf.text('[Image unavailable]', ix, y + 30); }
         }
         y += ih + 12;
+      }
+
+      // Genomic Risk Analysis (only if genomic data exists)
+      if (genomicData) {
+        pageCheck(75); y = sectionHeader('Genomic Risk Analysis', y);
+
+        // Source file information
+        if (genomicData.source_file) {
+          setFont(7.5, 'normal', 100, 116, 139); pdf.text('Source File:', c1, y);
+          setFont(8, 'normal', 30, 40, 55); pdf.text(genomicData.source_file, c1 + 25, y);
+          y += 5.5;
+        }
+
+        // PRS Score bar
+        const prs = genomicData.prs || 0;
+        const riskCat = genomicData.risk_category || 'N/A';
+        const [prR, prG, prB] = prs < 0.3 ? [16, 185, 129] : prs < 0.6 ? [245, 158, 11] : [248, 113, 113];
+
+        setFont(8, 'normal', 100, 116, 139); pdf.text('Polygenic Risk Score (PRS)', c1, y);
+        // PRS bar background
+        pdf.setFillColor(229, 231, 235); pdf.roundedRect(c1, y + 2, 80, 5, 1.5, 1.5, 'F');
+        // PRS bar fill
+        pdf.setFillColor(prR, prG, prB); pdf.roundedRect(c1, y + 2, 80 * prs, 5, 1.5, 1.5, 'F');
+        // PRS value
+        setFont(12, 'bold', prR, prG, prB); pdf.text(`${(prs * 100).toFixed(0)}%`, c1 + 85, y + 6);
+        // Risk category badge
+        pdf.setFillColor(prR, prG, prB);
+        pdf.setGState(new pdf.GState({ opacity: 0.12 }));
+        pdf.roundedRect(c1 + 100, y, 28, 7, 1.5, 1.5, 'F');
+        pdf.setGState(new pdf.GState({ opacity: 1 }));
+        setFont(7, 'bold', prR, prG, prB); pdf.text(riskCat, c1 + 114, y + 5, { align: 'center' });
+        y += 12;
+
+        // Total variants
+        setFont(7.5, 'normal', 100, 116, 139); pdf.text('Total Variants Detected:', c1, y);
+        setFont(9, 'bold', 30, 40, 55); pdf.text(String(genomicData.variants_detected || 0), c1 + 42, y);
+        y += 8;
+
+        // Per-gene table with expanded variant info
+        pageCheck(55);
+        const gCols = [c1, c1 + 25, c1 + 42, c1 + 62, c1 + 85, c1 + 110];
+        const gHeaders = ['Gene', 'Weight', 'Variants', 'SNPs/INDELs', 'Alignment', 'Status'];
+        const gWeights = { VEGF: '30%', MMP1: '25%', COL1A1: '20%', TNF: '15%', IL6: '10%' };
+
+        // Table header
+        pdf.setFillColor(245, 243, 255); pdf.rect(c1 - 2, y - 1, CW - 2, 6, 'F');
+        gHeaders.forEach((h, i) => { setFont(6, 'bold', 100, 116, 139); pdf.text(h, gCols[i], y + 3); });
+        y += 7;
+
+        // Table rows
+        GENE_ORDER.forEach((gene, idx) => {
+          pageCheck(8);
+          const ld = genomicData.locus_details?.[gene] || {};
+          const alignPct = ((ld.alignment_score || 0) * 100).toFixed(1) + '%';
+          const vc = ld.variant_count || 0;
+          const snpIndel = `${ld.snp_count || 0}/${ld.indel_count || 0}`;
+          const statusColor = vc === 0 ? [16, 185, 129] : [248, 113, 113];
+
+          if (idx % 2 === 1) { pdf.setFillColor(249, 248, 255); pdf.rect(c1 - 2, y - 1, CW - 2, 5.5, 'F'); }
+          setFont(7, 'normal', 30, 40, 55); pdf.text(gene, gCols[0], y + 3);
+          setFont(6.5, 'normal', 100, 116, 139); pdf.text(gWeights[gene], gCols[1], y + 3);
+          setFont(7, 'bold', statusColor[0], statusColor[1], statusColor[2]); pdf.text(String(vc), gCols[2], y + 3);
+          setFont(6, 'normal', 30, 40, 55); pdf.text(snpIndel, gCols[3], y + 3);
+          setFont(6.5, 'normal', 30, 40, 55); pdf.text(alignPct, gCols[4], y + 3);
+          setFont(6.5, 'normal', statusColor[0], statusColor[1], statusColor[2]);
+          pdf.text(vc === 0 ? 'Normal' : 'Variant', gCols[5], y + 3);
+          y += 6;
+        });
+        y += 6;
       }
 
       // Physician Review
@@ -406,6 +494,13 @@ export default function ReportPage() {
                   maxLength={60}
                 />
               </div>
+
+              {/* Genomic Risk Analysis */}
+              {scanData?.patientId && (
+                <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
+                  <GenomicRiskPanel patientId={scanData.patientId} />
+                </div>
+              )}
             </div>
           </div>
 

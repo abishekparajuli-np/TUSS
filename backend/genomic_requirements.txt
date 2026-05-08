@@ -1,0 +1,7 @@
+# Additional requirements for genomic analysis server
+# Install alongside existing backend/requirements.txt:
+#   pip install -r genomic_requirements.txt
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+firebase-admin>=6.2.0
