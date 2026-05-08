@@ -59,29 +59,26 @@ transform = transforms.Compose([
 FW = 320
 FH = 240
 
-ROI_SIZE = 90
-
 ANALYSIS_SECONDS = 3
 
 prediction_history = deque(maxlen=60)
 confidence_history = deque(maxlen=60)
-temp_history = deque(maxlen=60)
 
 prev_time = time.time()
+
+analysis_start = time.time()
+
+stable_result = "ANALYZING"
 
 # =========================================================
 # WINDOW
 # =========================================================
 
-cv2.namedWindow("THERMAL FOOT ANALYSIS")
+cv2.namedWindow("THERMAL FOOT AI")
 
 # =========================================================
 # MAIN LOOP
 # =========================================================
-
-analysis_start = time.time()
-
-stable_result = "ANALYZING"
 
 while True:
 
@@ -91,13 +88,16 @@ while True:
         continue
 
     # =====================================================
-    # RESIZE INPUT
+    # RESIZE
     # =====================================================
 
-    frame = cv2.resize(frame, (FW, FH))
+    frame = cv2.resize(
+        frame,
+        (FW, FH)
+    )
 
     # =====================================================
-    # KEEP LOWER THERMAL SECTION ONLY
+    # KEEP LOWER THERMAL FEED
     # =====================================================
 
     thermal_frame = frame[FH//2:, :]
@@ -108,7 +108,7 @@ while True:
     )
 
     # =====================================================
-    # THERMAL PROCESSING
+    # PREPROCESS
     # =====================================================
 
     gray = cv2.cvtColor(
@@ -118,178 +118,370 @@ while True:
 
     blur = cv2.GaussianBlur(
         gray,
-        (5, 5),
+        (5,5),
         0
     )
 
-    thermal = cv2.applyColorMap(
+    # =====================================================
+    # ADAPTIVE THRESHOLD
+    # =====================================================
+
+    dynamic_thresh = int(
+        np.mean(blur) + 15
+    )
+
+    _, thresh = cv2.threshold(
+        blur,
+        dynamic_thresh,
+        255,
+        cv2.THRESH_BINARY
+    )
+
+    # =====================================================
+    # CLEANUP
+    # =====================================================
+
+    kernel = np.ones((5,5), np.uint8)
+
+    mask = cv2.morphologyEx(
+        thresh,
+        cv2.MORPH_OPEN,
+        kernel
+    )
+
+    mask = cv2.morphologyEx(
+        mask,
+        cv2.MORPH_CLOSE,
+        kernel
+    )
+
+    # =====================================================
+    # CONTOURS
+    # =====================================================
+
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+
+    display_thermal = cv2.applyColorMap(
         blur,
         cv2.COLORMAP_INFERNO
     )
 
-    # =====================================================
-    # ROI
-    # =====================================================
-
-    cx = FW // 2
-    cy = FH // 2
-
-    x1 = cx - ROI_SIZE // 2
-    y1 = cy - ROI_SIZE // 2
-
-    x2 = x1 + ROI_SIZE
-    y2 = y1 + ROI_SIZE
-
-    roi = blur[y1:y2, x1:x2]
-
-    # =====================================================
-    # METRICS
-    # =====================================================
-
-    roi_mean = np.mean(roi)
-
-    roi_std = np.std(roi)
-
-    minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(
-        blur
+    model_preview = np.zeros(
+        (224,224,3),
+        dtype=np.uint8
     )
 
-    hotspot_delta = maxVal - roi_mean
+    stable_result = "NO FOOT"
 
-    asymmetry_score = abs(
-        np.mean(blur[:, :FW//2]) -
-        np.mean(blur[:, FW//2:])
-    )
+    confidence = 0
 
-    thermal_variance = np.var(blur)
+    risk_score = 0
 
-    edge_strength = cv2.Laplacian(
-        blur,
-        cv2.CV_64F
-    ).var()
+    if len(contours) > 0:
 
-    temp_history.append(roi_mean)
-
-    # =====================================================
-    # AI INFERENCE
-    # =====================================================
-
-    rgb = cv2.cvtColor(
-        thermal,
-        cv2.COLOR_BGR2RGB
-    )
-
-    img_tensor = transform(rgb)
-
-    img_tensor = img_tensor.unsqueeze(0)
-
-    img_tensor = img_tensor.to(device)
-
-    with torch.no_grad():
-
-        output = model(img_tensor)
-
-        probabilities = torch.softmax(
-            output,
-            dim=1
+        largest = max(
+            contours,
+            key=cv2.contourArea
         )
 
-        confidence = torch.max(
-            probabilities
-        ).item()
-
-        prediction = torch.argmax(
-            output,
-            dim=1
-        ).item()
-
-    prediction_history.append(prediction)
-
-    confidence_history.append(confidence)
-
-    # =====================================================
-    # TEMPORAL STABILIZATION
-    # =====================================================
-
-    elapsed = time.time() - analysis_start
-
-    if elapsed < ANALYSIS_SECONDS:
-
-        stable_result = "ANALYZING"
-
-    else:
-
-        avg_prediction = np.mean(
-            prediction_history
+        area = cv2.contourArea(
+            largest
         )
 
-        avg_confidence = np.mean(
-            confidence_history
-        )
+        if area > 3000:
 
-        if avg_confidence < 0.65:
+            # =============================================
+            # DRAW FOOT CONTOUR
+            # =============================================
 
-            stable_result = "UNCERTAIN"
+            cv2.drawContours(
+                display_thermal,
+                [largest],
+                -1,
+                (255,255,255),
+                2
+            )
 
-        else:
+            # =============================================
+            # BOUNDING BOX
+            # =============================================
 
-            if avg_prediction < 0.5:
-                stable_result = "HEALTHY"
+            x, y, w, h = cv2.boundingRect(
+                largest
+            )
+
+            padding = 20
+
+            x = max(0, x-padding)
+            y = max(0, y-padding)
+
+            w = min(FW-x, w+padding*2)
+            h = min(FH-y, h+padding*2)
+
+            # =============================================
+            # FOOT CROP
+            # =============================================
+
+            foot_crop = thermal_frame[
+                y:y+h,
+                x:x+w
+            ]
+
+            # =============================================
+            # MASK CROP
+            # =============================================
+
+            foot_mask = np.zeros_like(mask)
+
+            cv2.drawContours(
+                foot_mask,
+                [largest],
+                -1,
+                255,
+                -1
+            )
+
+            foot_mask_crop = foot_mask[
+                y:y+h,
+                x:x+w
+            ]
+
+            # =============================================
+            # ISOLATE FOOT
+            # =============================================
+
+            isolated = cv2.bitwise_and(
+                foot_crop,
+                foot_crop,
+                mask=foot_mask_crop
+            )
+
+            # =============================================
+            # BLACK BACKGROUND
+            # =============================================
+
+            black_bg = np.zeros_like(
+                isolated
+            )
+
+            isolated = np.where(
+                isolated > 0,
+                isolated,
+                black_bg
+            ).astype(np.uint8)
+
+            # =============================================
+            # NORMALIZE
+            # =============================================
+
+            isolated_gray = cv2.cvtColor(
+                isolated,
+                cv2.COLOR_BGR2GRAY
+            )
+
+            isolated_gray = cv2.equalizeHist(
+                isolated_gray
+            )
+
+            # =============================================
+            # MATCH TRAINING STYLE
+            # =============================================
+
+            thermal_match = cv2.applyColorMap(
+                isolated_gray,
+                cv2.COLORMAP_OCEAN
+            )
+
+            # =============================================
+            # CENTER FOOT ON BLACK CANVAS
+            # =============================================
+
+            canvas = np.zeros(
+                (224,224,3),
+                dtype=np.uint8
+            )
+
+            resized = cv2.resize(
+                thermal_match,
+                (180,180)
+            )
+
+            offset = 22
+
+            canvas[
+                offset:offset+180,
+                offset:offset+180
+            ] = resized
+
+            model_preview = canvas.copy()
+
+            # =============================================
+            # AI INFERENCE
+            # =============================================
+
+            rgb = cv2.cvtColor(
+                canvas,
+                cv2.COLOR_BGR2RGB
+            )
+
+            img_tensor = transform(rgb)
+
+            img_tensor = img_tensor.unsqueeze(0)
+
+            img_tensor = img_tensor.to(device)
+
+            with torch.no_grad():
+
+                output = model(img_tensor)
+
+                probs = torch.softmax(
+                    output,
+                    dim=1
+                )
+
+                confidence = torch.max(
+                    probs
+                ).item()
+
+                prediction = torch.argmax(
+                    output,
+                    dim=1
+                ).item()
+
+            prediction_history.append(
+                prediction
+            )
+
+            confidence_history.append(
+                confidence
+            )
+
+            # =============================================
+            # TEMPORAL STABILIZATION
+            # =============================================
+
+            elapsed = time.time() - analysis_start
+
+            if elapsed < ANALYSIS_SECONDS:
+
+                stable_result = "ANALYZING"
+
             else:
-                stable_result = "ULCER RISK"
 
-    # =====================================================
-    # RISK SCORING
-    # =====================================================
+                avg_pred = np.mean(
+                    prediction_history
+                )
 
-    risk_score = (
-        hotspot_delta * 0.4 +
-        asymmetry_score * 0.3 +
-        thermal_variance * 0.2 +
-        edge_strength * 0.1
-    )
+                avg_conf = np.mean(
+                    confidence_history
+                )
 
-    risk_score = np.clip(
-        risk_score / 25,
-        0,
-        100
-    )
+                if avg_conf < 0.65:
 
-    # =====================================================
-    # DRAWINGS
-    # =====================================================
+                    stable_result = "UNCERTAIN"
 
-    cv2.rectangle(
-        thermal,
-        (x1, y1),
-        (x2, y2),
-        (255, 255, 255),
-        2
-    )
+                else:
 
-    cv2.circle(
-        thermal,
-        maxLoc,
-        8,
-        (255, 255, 255),
-        2
-    )
+                    if avg_pred < 0.5:
+                        stable_result = "HEALTHY"
+                    else:
+                        stable_result = "ULCER RISK"
 
-    cv2.line(
-        thermal,
-        (cx - 20, cy),
-        (cx + 20, cy),
-        (255, 255, 255),
-        1
-    )
+            # =============================================
+            # HOTSPOT ANALYSIS
+            # =============================================
 
-    cv2.line(
-        thermal,
-        (cx, cy - 20),
-        (cx, cy + 20),
-        (255, 255, 255),
-        1
-    )
+            hotspot = isolated_gray > (
+                np.mean(isolated_gray) + 25
+            )
+
+            hotspot_area = np.sum(
+                hotspot
+            )
+
+            # =============================================
+            # ASYMMETRY
+            # =============================================
+
+            left = isolated_gray[
+                :,
+                :isolated_gray.shape[1]//2
+            ]
+
+            right = isolated_gray[
+                :,
+                isolated_gray.shape[1]//2:
+            ]
+
+            asymmetry = abs(
+                np.mean(left) -
+                np.mean(right)
+            )
+
+            # =============================================
+            # VARIANCE
+            # =============================================
+
+            variance = np.var(
+                isolated_gray
+            )
+
+            # =============================================
+            # EDGE STRENGTH
+            # =============================================
+
+            edges = cv2.Canny(
+                isolated_gray,
+                50,
+                150
+            )
+
+            edge_strength = np.mean(
+                edges
+            )
+
+            # =============================================
+            # RISK SCORE
+            # =============================================
+
+            risk_score = (
+                confidence * 35 +
+                asymmetry * 0.4 +
+                variance * 0.08 +
+                hotspot_area * 0.001 +
+                edge_strength * 0.1
+            )
+
+            risk_score = np.clip(
+                risk_score,
+                0,
+                100
+            )
+
+            # =============================================
+            # HOTTEST POINT
+            # =============================================
+
+            minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(
+                isolated_gray
+            )
+
+            maxLoc = (
+                maxLoc[0] + x,
+                maxLoc[1] + y
+            )
+
+            cv2.circle(
+                display_thermal,
+                maxLoc,
+                8,
+                (255,255,255),
+                2
+            )
 
     # =====================================================
     # FPS
@@ -305,14 +497,20 @@ while True:
     # METRIC PANEL
     # =====================================================
 
-    panel_h = 220
+    panel_h = 320
 
     display = np.zeros(
-        (FH + panel_h, FW, 3),
+        (FH + panel_h, FW + 224, 3),
         dtype=np.uint8
     )
 
-    display[:FH, :] = thermal
+    # left thermal feed
+
+    display[:FH, :FW] = display_thermal
+
+    # right model input preview
+
+    display[:224, FW:FW+224] = model_preview
 
     panel = display[FH:, :]
 
@@ -320,52 +518,42 @@ while True:
     # TEXT
     # =====================================================
 
-    y = 25
+    y_text = 25
 
     def put(txt):
 
-        global y
+        global y_text
 
         cv2.putText(
             panel,
             txt,
-            (10, y),
+            (10, y_text),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
-            (255, 255, 255),
+            (255,255,255),
             1
         )
 
-        y += 25
+        y_text += 25
 
     put(f"FPS: {fps:.1f}")
 
     put(f"STATUS: {stable_result}")
 
-    put(f"CONFIDENCE: {np.mean(confidence_history):.2f}")
+    put(f"CONFIDENCE: {confidence:.2f}")
 
-    put(f"MAX INTENSITY: {maxVal:.1f}")
+    put(f"THERMAL RISK INDEX: {risk_score:.1f}/100")
 
-    put(f"ROI TEMP AVG: {roi_mean:.1f}")
-
-    put(f"HOTSPOT DELTA: {hotspot_delta:.1f}")
-
-    put(f"ASYMMETRY SCORE: {asymmetry_score:.1f}")
-
-    put(f"THERMAL VARIANCE: {thermal_variance:.1f}")
-
-    put(f"EDGE STRENGTH: {edge_strength:.1f}")
-
-    put(f"RISK SCORE: {risk_score:.1f}/100")
+    put(f"PREDICTION BUFFER: {len(prediction_history)}")
 
     # =====================================================
     # RISK BAR
     # =====================================================
 
     bar_x = 10
-    bar_y = 180
-    bar_w = 280
-    bar_h = 20
+    bar_y = 260
+    bar_w = 300
+    bar_h = 25
 
     cv2.rectangle(
         panel,
@@ -390,7 +578,7 @@ while True:
     cv2.putText(
         panel,
         "THERMAL RISK INDEX",
-        (10, 170),
+        (10, 250),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.5,
         (255,255,255),
@@ -398,11 +586,35 @@ while True:
     )
 
     # =====================================================
+    # TITLES
+    # =====================================================
+
+    cv2.putText(
+        display,
+        "LIVE THERMAL",
+        (10, 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255,255,255),
+        2
+    )
+
+    cv2.putText(
+        display,
+        "MODEL INPUT",
+        (FW + 20, 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255,255,255),
+        2
+    )
+
+    # =====================================================
     # DISPLAY
     # =====================================================
 
     cv2.imshow(
-        "THERMAL FOOT ANALYSIS",
+        "THERMAL FOOT AI",
         display
     )
 
