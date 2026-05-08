@@ -1,0 +1,72 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+}
+
+:root {
+  --color-bg-primary: #050d1a;
+  --color-bg-surface: #0a1628;
+  --color-accent-teal: #00ffc8;
+  --color-accent-blue: #0080ff;
+  --color-danger: #ff4b6e;
+  --color-success: #00e676;
+  --color-text-primary: #e0f7fa;
+  --color-text-muted: #546e7a;
+}
+
+* {
+  @apply selection:bg-[#00ffc8] selection:text-[#050d1a];
+}
+
+body {
+  @apply bg-[#050d1a] text-[#e0f7fa] font-sans;
+  font-family: 'Inter', sans-serif;
+}
+
+.glow-card {
+  @apply bg-[#0a1628] border border-[rgba(0,255,200,0.15)];
+  box-shadow: 0 0 20px rgba(0, 255, 200, 0.08);
+}
+
+.glow-teal {
+  box-shadow: 0 0 20px rgba(0, 255, 200, 0.2);
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px rgba(0, 128, 255, 0.2);
+}
+
+.btn-primary {
+  @apply px-4 py-2 rounded font-mono font-semibold transition-all duration-300;
+  @apply bg-[#050d1a] border-2 border-[#00ffc8] text-[#00ffc8];
+}
+
+.btn-primary:hover {
+  @apply bg-[#00ffc8] text-[#050d1a];
+}
+
+.input-base {
+  @apply bg-[#0a1628] text-[#e0f7fa] border-b-2 border-[#00ffc8] px-3 py-2 outline-none transition-all;
+  @apply placeholder-[#546e7a] font-mono;
+}
+
+.input-base:focus {
+  @apply border-b-2 border-[#0080ff];
+  box-shadow: 0 0 10px rgba(0, 128, 255, 0.3);
+}
+
+.status-healthy {
+  @apply text-[#00e676];
+}
+
+.status-risk {
+  @apply text-[#ff4b6e] animate-pulse;
+}
+
+.status-analyzing {
+  @apply text-[#ffa500];
+}

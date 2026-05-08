@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Reports storage
+    match /reports/{patientMrn}/{scanId}/{allPaths=**} {
+      allow read: if request.auth != null && 
+                     get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'doctor';
+      allow write: if request.auth != null && 
+                      get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'doctor' &&
+                      request.resource.size < 50 * 1024 * 1024; // 50MB max
+      allow delete: if request.auth != null && 
+                       get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'doctor';
+    }
+
+    // Model input images
+    match /model-inputs/{scanId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                      request.resource.size < 10 * 1024 * 1024; // 10MB max
+      allow delete: if request.auth != null;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
