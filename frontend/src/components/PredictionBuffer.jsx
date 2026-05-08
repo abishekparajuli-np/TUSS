@@ -12,12 +12,12 @@ export default function PredictionBuffer({ history, maxLength = 60 }) {
 
   return (
     <div className="w-full">
-      <div className="text-xs font-mono text-[#546e7a] mb-2">PREDICTION BUFFER</div>
+      <div className="text-xs font-mono text-[#6B7280] mb-2">PREDICTION BUFFER</div>
       <div className="flex gap-1 items-center justify-start overflow-x-auto pb-2">
         {empty.map((_, i) => (
           <div
             key={`empty-${i}`}
-            className="w-2 h-2 rounded-full bg-[#0a1628] border border-[rgba(0,255,200,0.1)]"
+            className="w-2 h-2 rounded-full bg-[#FAF8FF] border border-[rgba(16,185,129,0.15)]"
           />
         ))}
         {displayHistory.map((pred, i) => (
@@ -25,13 +25,13 @@ export default function PredictionBuffer({ history, maxLength = 60 }) {
             key={`pred-${i}`}
             className="w-2 h-2 rounded-full"
             style={{
-              backgroundColor: pred === 0 ? '#00e676' : '#ff4b6e',
-              boxShadow: `0 0 4px ${pred === 0 ? '#00e676' : '#ff4b6e'}`,
+              backgroundColor: pred === 0 ? '#10B981' : '#F87171',
+              boxShadow: `0 0 4px ${pred === 0 ? '#10B981' : '#F87171'}`,
             }}
           />
         ))}
       </div>
-      <div className="text-xs font-mono text-[#546e7a]">
+      <div className="text-xs font-mono text-[#6B7280]">
         {displayHistory.length} / {maxLength} frames
       </div>
     </div>

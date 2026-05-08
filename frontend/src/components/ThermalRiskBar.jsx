@@ -12,17 +12,17 @@ export default function ThermalRiskBar({ riskScore, label = 'THERMAL RISK INDEX'
 
   return (
     <div className="w-full">
-      {label && <div className="text-xs font-mono text-[#546e7a] mb-2">{label}</div>}
-      <div className="w-full h-3 bg-[#0a1628] border border-[rgba(0,255,200,0.15)] rounded-full overflow-hidden">
+      {label && <div className="text-xs font-mono text-[#6B7280] mb-2">{label}</div>}
+      <div className="w-full h-3 bg-[#FAF8FF] border border-[rgba(16,185,129,0.15)] rounded-full overflow-hidden">
         <div
           className="h-full transition-all duration-300"
           style={{
             width: `${percentage}%`,
-            backgroundColor: isHigh ? '#ff4b6e' : '#00ffc8',
+            backgroundColor: isHigh ? '#F87171' : '#10B981',
           }}
         />
       </div>
-      <div className="text-right text-xs font-mono text-[#00ffc8] mt-1">
+      <div className="text-right text-xs font-mono text-[#10B981] mt-1">
         {riskScore.toFixed(1)} / 100
       </div>
     </div>

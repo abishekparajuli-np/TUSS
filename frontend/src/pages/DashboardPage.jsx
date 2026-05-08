@@ -6,339 +6,324 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 
-const safeNum = (val, fallback = 0) => {
-  const n = Number(val);
-  return isNaN(n) ? fallback : n;
+const safeNum = (val, fb = 0) => { const n = Number(val); return isNaN(n) ? fb : n; };
+
+const fmtDate = (ts) => {
+  if (!ts?.toDate) return '—';
+  return new Date(ts.toDate()).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 };
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    scansToday: 0,
-    highRiskToday: 0,
-    patientsSeen: 0,
-  });
+  const [loading, setLoading]   = useState(true);
+  const [stats, setStats]       = useState({ scansToday: 0, highRiskToday: 0, patientsSeen: 0 });
   const [recentScans, setRecentScans] = useState([]);
   const [patients, setPatients] = useState([]);
-  const [showPatientList, setShowPatientList] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [showPatients, setShowPatients] = useState(false);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
       try {
-        // Load all scans for this doctor
-        let allScans = [];
+        let scans = [];
         try {
-          const scansQuery = query(
+          const snap = await getDocs(query(
             collection(db, 'scans'),
             where('doctorId', '==', currentUser.uid),
             orderBy('completedAt', 'desc'),
             limit(50)
-          );
-          const scansSnapshot = await getDocs(scansQuery);
-          allScans = scansSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-        } catch (queryErr) {
-          // If composite index is missing, try without orderBy
-          console.warn('Composite index not available, fetching without order:', queryErr.message);
-          const fallbackQuery = query(
+          ));
+          scans = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch {
+          const snap = await getDocs(query(
             collection(db, 'scans'),
             where('doctorId', '==', currentUser.uid),
             limit(50)
-          );
-          const scansSnapshot = await getDocs(fallbackQuery);
-          allScans = scansSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          // Sort client-side
-          allScans.sort((a, b) => {
-            const aTime = a.completedAt?.toDate?.()?.getTime() || 0;
-            const bTime = b.completedAt?.toDate?.()?.getTime() || 0;
-            return bTime - aTime;
-          });
+          ));
+          scans = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          scans.sort((a, b) => (b.completedAt?.toDate?.()?.getTime() || 0) - (a.completedAt?.toDate?.()?.getTime() || 0));
         }
 
-        // Filter today's scans client-side
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayScans = allScans.filter((s) => {
-          const scanDate = s.completedAt?.toDate?.();
-          return scanDate && scanDate >= today;
-        });
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const todayScans = scans.filter(s => { const d = s.completedAt?.toDate?.(); return d && d >= today; });
 
-        setRecentScans(allScans.slice(0, 10));
-
-        // Calculate stats
-        const highRiskCount = todayScans.filter(
-          (s) => s.status === 'ULCER RISK'
-        ).length;
-        const uniquePatients = new Set(todayScans.map((s) => s.patientId)).size;
-
+        setRecentScans(scans.slice(0, 10));
         setStats({
-          scansToday: todayScans.length,
-          highRiskToday: highRiskCount,
-          patientsSeen: uniquePatients,
+          scansToday:    todayScans.length,
+          highRiskToday: todayScans.filter(s => s.status === 'ULCER RISK').length,
+          patientsSeen:  new Set(todayScans.map(s => s.patientId)).size,
         });
 
-        // Load all patients for the patient list
-        try {
-          const patientsSnapshot = await getDocs(collection(db, 'patients'));
-          const patientsList = patientsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setPatients(patientsList);
-        } catch (err) {
-          console.warn('Failed to load patients:', err.message);
-        }
-      } catch (error) {
-        toast.error('Error loading dashboard: ' + error.message);
+        const pSnap = await getDocs(collection(db, 'patients')).catch(() => ({ docs: [] }));
+        setPatients(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (e) {
+        toast.error('Could not load dashboard data');
       } finally {
         setLoading(false);
       }
     };
-
-    loadData();
+    load();
   }, [currentUser]);
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      toast.error('Logout failed');
-    }
+    try { await logout(); navigate('/login'); }
+    catch { toast.error('Logout failed'); }
   };
 
-  const filteredPatients = patients.filter((p) =>
-    (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.mrn || '').toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = patients.filter(p =>
+    (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.mrn  || '').toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#050d1a]">
-        <div className="text-[#00ffc8] font-mono">Loading...</div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+        <span style={{ color: 'var(--lavender)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem' }}>Loading…</span>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen py-8 px-4">
+    <div style={{ position: 'relative', minHeight: '100vh' }}>
+      <div style={{ position: 'relative', zIndex: 10, maxWidth: '1100px', margin: '0 auto', padding: '2.5rem 1.5rem' }}>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
           <div>
-            <h1 className="text-4xl font-bold text-[#00ffc8] font-mono mb-2">
-              THERMASCAN DASHBOARD
+            <p className="label" style={{ marginBottom: '0.35rem', color: 'var(--lavender)' }}>Thermascan AI · Clinical Portal</p>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-heading)', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+              Hello, Doctor!
             </h1>
-            <p className="text-[#546e7a] font-mono text-sm">
-              Welcome back, {currentUser.email}
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="mt-4 md:mt-0 px-4 py-2 font-mono text-sm border border-[#00ffc8] text-[#00ffc8] rounded hover:bg-[#00ffc8] hover:text-[#050d1a] transition-all"
-          >
-            Logout
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser.email}
+            </span>
+            <button className="btn-ghost" onClick={handleLogout} style={{ fontSize: '0.8rem' }}>
+              Sign out
+            </button>
+          </div>
+        </header>
+
+        {/* ── Stats Row ──────────────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+          {[
+            { label: 'Scans today',   value: stats.scansToday,    sub: 'completed',   accent: 'var(--emerald)',  border: 'var(--emerald)', bg: '#F0FDF4' },
+            { label: 'High risk',     value: stats.highRiskToday, sub: 'flagged',      accent: 'var(--danger)',   border: 'var(--danger)',  bg: '#FFF1F2' },
+            { label: 'Patients seen', value: stats.patientsSeen,  sub: 'unique today', accent: 'var(--lavender)', border: 'var(--lavender)',bg: '#F5F3FF' },
+          ].map(({ label, value, sub, accent, border, bg }) => (
+            <div
+              key={label}
+              style={{
+                background: 'var(--bg-surface)',
+                border: `1px solid ${border}30`,
+                borderTop: `3px solid ${border}`,
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                boxShadow: 'var(--shadow-card)',
+              }}
+            >
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>{label}</p>
+              <p style={{ fontSize: '2.5rem', fontWeight: 700, color: accent, lineHeight: 1, fontFamily: 'JetBrains Mono, monospace' }}>{value}</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>{sub}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Stats Strip */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="glow-card rounded-lg p-6">
-            <div className="text-xs font-mono text-[#546e7a] mb-2">
-              TOTAL SCANS TODAY
-            </div>
-            <div className="text-4xl font-bold text-[#00ffc8] font-mono">
-              {stats.scansToday}
-            </div>
-          </div>
+        {/* ── Main 2-col layout ──────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1.25rem', alignItems: 'start' }}>
 
-          <div className="glow-card rounded-lg p-6">
-            <div className="text-xs font-mono text-[#546e7a] mb-2">
-              HIGH RISK TODAY
-            </div>
-            <div className="text-4xl font-bold text-[#ff4b6e] font-mono">
-              {stats.highRiskToday}
-            </div>
-          </div>
-
-          <div className="glow-card rounded-lg p-6">
-            <div className="text-xs font-mono text-[#546e7a] mb-2">
-              PATIENTS SEEN
-            </div>
-            <div className="text-4xl font-bold text-[#0080ff] font-mono">
-              {stats.patientsSeen}
-            </div>
-          </div>
-        </div>
-
-        {/* Patient List Modal */}
-        {showPatientList && (
-          <div className="glow-card rounded-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#00ffc8] font-mono">
-                ALL PATIENTS
-              </h2>
-              <button
-                onClick={() => setShowPatientList(false)}
-                className="text-[#546e7a] hover:text-[#00ffc8] font-mono text-sm transition-colors"
-              >
-                ✕ Close
-              </button>
+          {/* Recent Scans */}
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-heading)' }}>Recent scans</h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>Last {recentScans.length} records</p>
+              </div>
+              <span className="pill pill-lav">{recentScans.length} total</span>
             </div>
 
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name or MRN..."
-              className="input-base w-full mb-4 font-mono"
-            />
-
-            {filteredPatients.length === 0 ? (
-              <div className="text-[#546e7a] font-mono text-sm py-4 text-center">
-                {patients.length === 0 ? 'No patients registered yet' : 'No matching patients'}
+            {recentScans.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                No scans recorded yet
               </div>
             ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {filteredPatients.map((p) => (
+              <div>
+                {/* Column headers */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr', padding: '0.6rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
+                  {['Status', 'Confidence', 'Risk', 'Date'].map(h => (
+                    <span key={h} className="label">{h}</span>
+                  ))}
+                </div>
+
+                {recentScans.map((scan, i) => (
                   <div
-                    key={p.id}
-                    className="flex items-center justify-between p-4 bg-[#050d1a] rounded border border-[rgba(0,255,200,0.1)] hover:border-[rgba(0,255,200,0.3)] cursor-pointer transition-all"
-                    onClick={() => navigate(`/patients/${p.id}`)}
+                    key={scan.id}
+                    onClick={() => navigate(`/report/${scan.id}`)}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '2fr 1fr 1fr 1.2fr',
+                      padding: '0.875rem 1.5rem',
+                      gap: '0.5rem',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      background: i % 2 !== 0 ? 'var(--bg-row-alt)' : 'transparent',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      transition: 'background 0.12s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F0FDF4'}
+                    onMouseLeave={e => e.currentTarget.style.background = i % 2 !== 0 ? 'var(--bg-row-alt)' : 'transparent'}
                   >
-                    <div>
-                      <div className="font-mono text-sm text-[#e0f7fa] font-bold">
-                        {p.name || 'Unknown'}
-                      </div>
-                      <div className="font-mono text-xs text-[#546e7a]">
-                        MRN: {p.mrn || 'N/A'} • {p.diabetesType || ''} • {p.duration || '?'} yrs
-                      </div>
-                    </div>
-                    <div className="text-[#00ffc8] font-mono text-xs">
-                      View →
-                    </div>
+                    <div><StatusBadge status={scan.status || 'UNKNOWN'} size="sm" /></div>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-body)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>
+                      {(safeNum(scan.confidence) * 100).toFixed(1)}%
+                    </span>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                      {safeNum(scan.riskScore).toFixed(0)}<span style={{ fontSize: '0.7rem' }}>/100</span>
+                    </span>
+                    <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                      {fmtDate(scan.completedAt)}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        )}
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Scans */}
-          <div className="lg:col-span-2">
-            <div className="glow-card rounded-lg p-6 mb-6">
-              <h2 className="text-lg font-bold text-[#00ffc8] font-mono mb-4">
-                RECENT SCANS
-              </h2>
+          {/* Sidebar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-              {recentScans.length === 0 ? (
-                <div className="text-[#546e7a] font-mono text-sm">
-                  No scans recorded yet
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentScans.map((scan) => (
-                    <div
-                      key={scan.id}
-                      className="flex items-center justify-between p-4 bg-[#050d1a] rounded border border-[rgba(0,255,200,0.1)] hover:border-[rgba(0,255,200,0.3)] cursor-pointer transition-all"
-                      onClick={() => navigate(`/report/${scan.id}`)}
+            {/* CTA */}
+            <button
+              className="btn-primary"
+              onClick={() => navigate('/patients/new')}
+              style={{ width: '100%', padding: '0.75rem 1rem', fontSize: '0.9rem', borderRadius: '10px' }}
+            >
+              + New Patient Scan
+            </button>
+
+            {/* Quick links */}
+            <div className="card" style={{ padding: '1rem' }}>
+              <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-heading)', marginBottom: '0.6rem' }}>Quick links</p>
+              {[
+                { label: 'Register new patient',  fn: () => navigate('/patients/new') },
+                { label: 'Browse patient history', fn: () => setShowPatients(v => !v) },
+                { label: 'Open latest report',    fn: () => recentScans.length ? navigate(`/report/${recentScans[0].id}`) : toast.error('No scans yet') },
+              ].map(({ label, fn }) => (
+                <button
+                  key={label}
+                  onClick={fn}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '0.55rem 0.65rem',
+                    borderRadius: '7px',
+                    fontSize: '0.8375rem',
+                    color: 'var(--text-body)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'background 0.12s, color 0.12s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#EDE9FE'; e.currentTarget.style.color = 'var(--lavender-dk)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-body)'; }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* System status */}
+            <div className="card" style={{ padding: '1rem' }}>
+              <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-heading)', marginBottom: '0.75rem' }}>System status</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {[
+                  { label: 'Database',        ok: true  },
+                  { label: 'Auth service',     ok: true  },
+                  { label: 'Inference server', ok: false },
+                ].map(({ label, ok }) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{label}</span>
+                    <span
+                      className="pill"
+                      style={ok
+                        ? { background: '#D1FAE5', color: '#065F46', fontSize: '0.68rem' }
+                        : { background: '#FEF9C3', color: '#78350F', fontSize: '0.68rem' }
+                      }
                     >
-                      <div className="flex-1">
-                        <StatusBadge status={scan.status || 'UNKNOWN'} size="sm" />
-                        <div className="text-xs font-mono text-[#546e7a] mt-2">
-                          {scan.completedAt?.toDate
-                            ? new Date(scan.completedAt.toDate()).toLocaleString()
-                            : 'Date unknown'}
-                        </div>
-                      </div>
+                      <span
+                        className="dot"
+                        style={{ background: ok ? 'var(--emerald)' : '#F59E0B', width: '6px', height: '6px' }}
+                      />
+                      {ok ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
 
-                      <div className="text-right font-mono text-sm text-[#0080ff]">
-                        {(safeNum(scan.confidence) * 100).toFixed(1)}% confidence
-                        <div className="text-xs text-[#546e7a] mt-1">
-                          Risk: {safeNum(scan.riskScore).toFixed(1)}/100
-                        </div>
+        {/* ── Patient list panel ──────────────────────────────────────── */}
+        {showPatients && (
+          <div className="card" style={{ marginTop: '1.25rem', overflow: 'hidden' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-heading)' }}>All patients</h3>
+              <button className="btn-ghost" onClick={() => setShowPatients(false)} style={{ fontSize: '0.8rem', padding: '0.3rem 0.7rem' }}>Close</button>
+            </div>
+            <div style={{ padding: '1rem 1.5rem' }}>
+              <input
+                className="input-base"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name or MRN…"
+                style={{ marginBottom: '0.75rem' }}
+              />
+              {filtered.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textAlign: 'center', padding: '1.5rem 0' }}>
+                  {patients.length === 0 ? 'No patients registered yet' : 'No matching results'}
+                </p>
+              ) : (
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {filtered.map((p, i) => (
+                    <div
+                      key={p.id}
+                      onClick={() => navigate(`/patients/${p.id}`)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.75rem 0.5rem',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        background: i % 2 !== 0 ? 'var(--bg-row-alt)' : 'transparent',
+                        transition: 'background 0.12s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#EDE9FE'}
+                      onMouseLeave={e => e.currentTarget.style.background = i % 2 !== 0 ? 'var(--bg-row-alt)' : 'transparent'}
+                    >
+                      <div>
+                        <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-heading)' }}>{p.name || 'Unknown'}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                          MRN {p.mrn || 'N/A'} · {p.diabetesType || 'Type ?'} · {p.duration || '?'} yrs
+                        </p>
                       </div>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--lavender)', fontWeight: 600 }}>View →</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
+        )}
 
-          {/* Quick Actions */}
-          <div className="space-y-4">
-            <button
-              onClick={() => navigate('/patients/new')}
-              className="btn-primary w-full py-4 font-bold uppercase text-lg"
-            >
-              + NEW PATIENT SCAN
-            </button>
-
-            <div className="glow-card rounded-lg p-6">
-              <h3 className="text-sm font-bold text-[#00ffc8] font-mono mb-4">
-                QUICK LINKS
-              </h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => navigate('/patients/new')}
-                  className="w-full text-left px-4 py-2 rounded font-mono text-sm text-[#e0f7fa] hover:bg-[#0a1628] transition-all"
-                >
-                  → Register New Patient
-                </button>
-                <button
-                  onClick={() => setShowPatientList(true)}
-                  className="w-full text-left px-4 py-2 rounded font-mono text-sm text-[#e0f7fa] hover:bg-[#0a1628] transition-all"
-                >
-                  → View Patient History
-                </button>
-                <button
-                  onClick={() => {
-                    if (recentScans.length === 0) {
-                      toast.error('No scans to download');
-                      return;
-                    }
-                    // Navigate to the most recent scan's report
-                    navigate(`/report/${recentScans[0].id}`);
-                  }}
-                  className="w-full text-left px-4 py-2 rounded font-mono text-sm text-[#e0f7fa] hover:bg-[#0a1628] transition-all"
-                >
-                  → Download Reports
-                </button>
-              </div>
-            </div>
-
-            <div className="glow-card rounded-lg p-6">
-              <h3 className="text-sm font-bold text-[#00ffc8] font-mono mb-3">
-                SYSTEM STATUS
-              </h3>
-              <div className="space-y-2 font-mono text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#00e676]" />
-                  <span className="text-[#e0f7fa]">Server Online</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#00e676]" />
-                  <span className="text-[#e0f7fa]">Database Connected</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#ffa500]" />
-                  <span className="text-[#e0f7fa]">Inference Server</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -177,8 +177,8 @@ export default function PatientProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#050d1a]">
-        <div className="text-[#00ffc8] font-mono">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen ">
+        <div className="text-[#10B981] font-mono">Loading...</div>
       </div>
     );
   }
@@ -189,7 +189,7 @@ export default function PatientProfilePage() {
         {/* Header */}
         <button
           onClick={() => navigate('/dashboard')}
-          className="mb-6 text-[#00ffc8] font-mono text-sm hover:text-[#0080ff] transition-colors"
+          className="mb-6 text-[#10B981] font-mono text-sm hover:text-[#10B981] transition-colors"
         >
           ← Back to Dashboard
         </button>
@@ -198,27 +198,27 @@ export default function PatientProfilePage() {
         <div className="glow-card rounded-lg p-8 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h1 className="text-4xl font-bold text-[#00ffc8] font-mono mb-4">
+              <h1 className="text-4xl font-bold text-[#10B981] font-mono mb-4">
                 {patient?.name}
               </h1>
-              <div className="space-y-2 font-mono text-[#e0f7fa]">
+              <div className="space-y-2 font-mono text-[#1E1B4B]">
                 <div>
-                  <span className="text-[#546e7a]">MRN:</span>
-                  <span className="ml-3 text-[#0080ff]">{patient?.mrn}</span>
+                  <span className="text-[#6B7280]">MRN:</span>
+                  <span className="ml-3 text-[#10B981]">{patient?.mrn}</span>
                 </div>
                 <div>
-                  <span className="text-[#546e7a]">DOB:</span>
-                  <span className="ml-3 text-[#0080ff]">{patient?.dob}</span>
+                  <span className="text-[#6B7280]">DOB:</span>
+                  <span className="ml-3 text-[#10B981]">{patient?.dob}</span>
                 </div>
                 <div>
-                  <span className="text-[#546e7a]">Diabetes Type:</span>
-                  <span className="ml-3 text-[#0080ff]">
+                  <span className="text-[#6B7280]">Diabetes Type:</span>
+                  <span className="ml-3 text-[#10B981]">
                     {patient?.diabetesType}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#546e7a]">Duration:</span>
-                  <span className="ml-3 text-[#0080ff]">
+                  <span className="text-[#6B7280]">Duration:</span>
+                  <span className="ml-3 text-[#10B981]">
                     {patient?.duration} years
                   </span>
                 </div>
@@ -226,7 +226,7 @@ export default function PatientProfilePage() {
             </div>
 
             <div>
-              <div className="text-xs font-mono text-[#546e7a] mb-3">
+              <div className="text-xs font-mono text-[#6B7280] mb-3">
                 KNOWN CONDITIONS
               </div>
               <div className="flex flex-wrap gap-2">
@@ -234,13 +234,13 @@ export default function PatientProfilePage() {
                   patient.conditions.map((condition) => (
                     <div
                       key={condition}
-                      className="px-3 py-1 bg-[#0a1628] border border-[rgba(0,255,200,0.2)] rounded text-xs font-mono text-[#00ffc8]"
+                      className="px-3 py-1 bg-[#FAF8FF] border border-[rgba(16,185,129,0.18)] rounded text-xs font-mono text-[#10B981]"
                     >
                       {condition}
                     </div>
                   ))
                 ) : (
-                  <div className="text-[#546e7a] text-xs font-mono">
+                  <div className="text-[#6B7280] text-xs font-mono">
                     No known conditions
                   </div>
                 )}
@@ -248,10 +248,10 @@ export default function PatientProfilePage() {
 
               {patient?.notes && (
                 <div className="mt-6">
-                  <div className="text-xs font-mono text-[#546e7a] mb-2">
+                  <div className="text-xs font-mono text-[#6B7280] mb-2">
                     CLINICAL NOTES
                   </div>
-                  <div className="text-sm text-[#e0f7fa] font-mono">
+                  <div className="text-sm text-[#1E1B4B] font-mono">
                     {patient.notes}
                   </div>
                 </div>
@@ -262,13 +262,13 @@ export default function PatientProfilePage() {
 
         {/* Scan Timeline */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[#00ffc8] font-mono mb-6">
+          <h2 className="text-2xl font-bold text-[#10B981] font-mono mb-6">
             SCAN HISTORY
           </h2>
 
           {scans.length === 0 ? (
             <div className="glow-card rounded-lg p-8 text-center">
-              <div className="text-[#546e7a] font-mono">
+              <div className="text-[#6B7280] font-mono">
                 No scans recorded yet
               </div>
             </div>
@@ -280,14 +280,14 @@ export default function PatientProfilePage() {
                   className="glow-card rounded-lg p-6 border-l-4"
                   style={{
                     borderLeftColor:
-                      scan.status === 'HEALTHY' ? '#00e676' : '#ff4b6e',
+                      scan.status === 'HEALTHY' ? '#10B981' : '#F87171',
                   }}
                 >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <StatusBadge status={scan.status || 'UNKNOWN'} size="sm" />
-                        <span className="font-mono text-xs text-[#546e7a]">
+                        <span className="font-mono text-xs text-[#6B7280]">
                           {scan.completedAt?.toDate
                             ? new Date(scan.completedAt.toDate()).toLocaleString()
                             : 'Date unknown'}
@@ -296,34 +296,34 @@ export default function PatientProfilePage() {
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                         <div>
-                          <div className="text-xs font-mono text-[#546e7a] mb-1">
+                          <div className="text-xs font-mono text-[#6B7280] mb-1">
                             CONFIDENCE
                           </div>
-                          <div className="text-lg font-mono text-[#0080ff] font-bold">
+                          <div className="text-lg font-mono text-[#10B981] font-bold">
                             {(safeNum(scan.confidence) * 100).toFixed(1)}%
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs font-mono text-[#546e7a] mb-1">
+                          <div className="text-xs font-mono text-[#6B7280] mb-1">
                             RISK INDEX
                           </div>
-                          <div className="text-lg font-mono text-[#0080ff] font-bold">
+                          <div className="text-lg font-mono text-[#10B981] font-bold">
                             {safeNum(scan.riskScore).toFixed(1)}/100
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs font-mono text-[#546e7a] mb-1">
+                          <div className="text-xs font-mono text-[#6B7280] mb-1">
                             ASYMMETRY
                           </div>
-                          <div className="text-lg font-mono text-[#0080ff] font-bold">
+                          <div className="text-lg font-mono text-[#10B981] font-bold">
                             {safeNum(scan.asymmetry).toFixed(2)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs font-mono text-[#546e7a] mb-1">
+                          <div className="text-xs font-mono text-[#6B7280] mb-1">
                             VARIANCE
                           </div>
-                          <div className="text-lg font-mono text-[#0080ff] font-bold">
+                          <div className="text-lg font-mono text-[#10B981] font-bold">
                             {safeNum(scan.variance).toFixed(2)}
                           </div>
                         </div>
@@ -346,7 +346,7 @@ export default function PatientProfilePage() {
                       </button>
                       <button
                         onClick={() => downloadReceipt(scan)}
-                        className="px-4 py-2 text-sm font-mono border border-[#0080ff] text-[#0080ff] rounded hover:bg-[#0080ff] hover:text-[#050d1a] transition-all"
+                        className="px-4 py-2 text-sm font-mono border border-[#6EE7B7] text-[#10B981] rounded hover:bg-[#6EE7B7] hover:text-[#ffffff] transition-all"
                       >
                         DOWNLOAD
                       </button>

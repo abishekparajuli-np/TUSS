@@ -77,147 +77,168 @@ export default function ReportPage() {
 
   const generatePDF = () => {
     try {
-      const pdf = new jsPDF();
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      let yPosition = 10;
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+      const PW = pdf.internal.pageSize.getWidth();
+      const PH = pdf.internal.pageSize.getHeight();
+      const ML = 14, MR = PW - ML, CW = PW - ML * 2;
+      let y = 0;
 
-      // Header
-      pdf.setFontSize(20);
-      pdf.setTextColor(0, 128, 100);
-      pdf.text('THERMASCAN AI', 10, yPosition);
-      pdf.setFontSize(12);
-      pdf.setTextColor(80, 80, 80);
-      pdf.text('Diabetic Foot Risk Assessment Report', 10, yPosition + 7);
-
-      yPosition += 20;
-
-      // Report metadata
-      pdf.setFontSize(10);
-      pdf.setTextColor(80, 110, 122);
-      const reportDate = new Date().toLocaleString();
-      pdf.text(`Report ID: ${scanId}`, 10, yPosition);
-      pdf.text(`Generated: ${reportDate}`, 10, yPosition + 5);
-      pdf.text(`Doctor: ${currentUser?.email || 'N/A'}`, 10, yPosition + 10);
-
-      yPosition += 20;
-
-      // Patient Section
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 128, 100);
-      pdf.text('PATIENT INFORMATION', 10, yPosition);
-      yPosition += 8;
-
-      pdf.setFontSize(10);
-      pdf.setTextColor(50, 50, 50);
-      pdf.text(`Name: ${patientData?.name || 'N/A'}`, 10, yPosition);
-      pdf.text(`MRN: ${patientData?.mrn || 'N/A'}`, 10, yPosition + 5);
-      pdf.text(`DOB: ${patientData?.dob || 'N/A'}`, 10, yPosition + 10);
-      pdf.text(`Diabetes Type: ${patientData?.diabetesType || 'N/A'}`, 10, yPosition + 15);
-      pdf.text(`Duration: ${patientData?.duration || 'N/A'} years`, 10, yPosition + 20);
-
-      yPosition += 30;
-
-      // ---- THERMAL IMAGES SECTION ----
-      const thermalB64 = scanData?.thermalImage;
-      const modelInputB64 = scanData?.modelInputImage;
-
-      if (thermalB64 || modelInputB64) {
-        pdf.setFontSize(14);
-        pdf.setTextColor(0, 128, 100);
-        pdf.text('CAPTURED IMAGES', 10, yPosition);
-        yPosition += 8;
-
-        const imgWidth = 80;
-        const imgHeight = 60;
-
-        if (thermalB64 && thermalB64.length > 100) {
-          pdf.setFontSize(8);
-          pdf.setTextColor(80, 80, 80);
-          pdf.text('Thermal Camera Feed', 10, yPosition);
-          yPosition += 3;
-          try {
-            const thermalImg = new Image();
-            thermalImg.src = 'data:image/jpeg;base64,' + thermalB64;
-            pdf.addImage(thermalImg, 'JPEG', 10, yPosition, imgWidth, imgHeight);
-          } catch (e) {
-            console.error('Failed to add thermal image to PDF:', e);
-            pdf.setFontSize(8);
-            pdf.text('[Thermal image could not be embedded]', 10, yPosition + 10);
-          }
+      const setFont = (size, style = 'normal', r = 30, g = 40, b = 55) => {
+        pdf.setFontSize(size); pdf.setFont('helvetica', style); pdf.setTextColor(r, g, b);
+      };
+      const hLine = (yp, op = 0.18) => {
+        pdf.setDrawColor(16, 185, 129); pdf.setLineWidth(0.25);
+        pdf.setGState(new pdf.GState({ opacity: op }));
+        pdf.line(ML, yp, MR, yp);
+        pdf.setGState(new pdf.GState({ opacity: 1 }));
+      };
+      const sectionHeader = (label, yp) => {
+        pdf.setFillColor(16, 185, 129); pdf.rect(ML, yp, 2, 4.5, 'F');
+        setFont(9, 'bold', 16, 185, 129);
+        pdf.text(label.toUpperCase(), ML + 4, yp + 3.5);
+        hLine(yp + 5.5, 0.12); return yp + 9;
+      };
+      const lv = (label, value, lx, vx, yp) => {
+        setFont(8, 'normal', 100, 116, 139); pdf.text(label, lx, yp);
+        setFont(8.5, 'normal', 30, 40, 55); pdf.text(String(value ?? 'N/A'), vx, yp);
+      };
+      const pageCheck = (needed = 30) => {
+        if (y + needed > PH - 20) {
+          pdf.addPage(); y = 18;
+          pdf.setFillColor(6, 16, 32); pdf.rect(0, 0, PW, 10, 'F');
+          setFont(7, 'normal', 16, 185, 129);
+          pdf.text('THERMASCAN AI  —  Continued', ML, 6.5);
+          hLine(10, 0.1);
         }
+      };
 
-        if (modelInputB64 && modelInputB64.length > 100) {
-          const modelX = thermalB64 ? 100 : 10;
-          const labelY = yPosition - 3;
-          pdf.setFontSize(8);
-          pdf.setTextColor(80, 80, 80);
-          pdf.text('Model Input (224x224)', modelX, labelY);
-          try {
-            const modelImg = new Image();
-            modelImg.src = 'data:image/jpeg;base64,' + modelInputB64;
-            pdf.addImage(modelImg, 'JPEG', modelX, yPosition, 60, 60);
-          } catch (e) {
-            console.error('Failed to add model input image to PDF:', e);
-          }
+      // Header bar
+      pdf.setFillColor(6, 16, 32); pdf.rect(0, 0, PW, 28, 'F');
+      pdf.setFillColor(16, 185, 129); pdf.rect(0, 0, PW, 0.8, 'F');
+      setFont(18, 'bold', 16, 185, 129); pdf.text('THERMASCAN AI', ML, 13);
+      setFont(8, 'normal', 148, 163, 184); pdf.text('Diabetic Foot Ulcer Risk Assessment', ML, 19);
+      setFont(7, 'normal', 100, 116, 139); pdf.text('CLINICAL REPORT  ·  CONFIDENTIAL', ML, 24.5);
+      const rDate = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+      setFont(7, 'normal', 100, 116, 139);
+      pdf.text('Report ID:', MR - 60, 13);
+      setFont(7, 'bold', 200, 220, 240); pdf.text((scanId ?? 'N/A').slice(0, 18), MR - 40, 13);
+      setFont(7, 'normal', 100, 116, 139); pdf.text('Generated:', MR - 60, 18);
+      pdf.text(rDate, MR - 60, 22.5, { maxWidth: 60 });
+      y = 36;
+
+      // Patient Information
+      y = sectionHeader('Patient Information', y);
+      const c1 = ML + 4, c2 = ML + 4 + CW / 2, vo = 32;
+      lv('Full Name',        patientData?.name         ?? 'N/A', c1, c1 + vo, y);
+      lv('Date of Birth',    patientData?.dob          ?? 'N/A', c2, c2 + vo, y); y += 5.5;
+      lv('MRN / Patient ID', patientData?.mrn          ?? 'N/A', c1, c1 + vo, y);
+      lv('Diabetes Type',    patientData?.diabetesType ?? 'N/A', c2, c2 + vo, y); y += 5.5;
+      lv('Physician',        currentUser?.email        ?? 'N/A', c1, c1 + vo, y);
+      lv('Duration',         `${patientData?.duration ?? 'N/A'} yrs`, c2, c2 + vo, y); y += 5.5;
+      if (patientData?.conditions?.length) {
+        lv('Known Conditions', patientData.conditions.join(' · '), c1, c1 + vo, y); y += 5.5;
+      }
+      y += 4;
+
+      // AI Analysis Results
+      pageCheck(50); y = sectionHeader('AI Analysis Results', y);
+      const status = scanData?.status ?? 'UNKNOWN';
+      const isRisk = /risk|ulcer/i.test(status);
+      const [bR, bG, bB] = isRisk ? [248, 113, 113] : [16, 185, 129];
+      pdf.setFillColor(bR, bG, bB);
+      pdf.setGState(new pdf.GState({ opacity: 0.1 }));
+      pdf.roundedRect(c1, y, 60, 12, 2, 2, 'F');
+      pdf.setGState(new pdf.GState({ opacity: 1 }));
+      pdf.setDrawColor(bR, bG, bB); pdf.setLineWidth(0.4);
+      pdf.roundedRect(c1, y, 60, 12, 2, 2, 'S');
+      setFont(10, 'bold', bR, bG, bB);
+      pdf.text(status, c1 + 30, y + 7.5, { align: 'center' });
+      const conf = (safeNum(scanData?.confidence) * 100).toFixed(1);
+      setFont(7.5, 'normal', 100, 116, 139); pdf.text('Confidence Score', c2, y + 3);
+      setFont(14, 'bold', 16, 185, 129); pdf.text(`${conf}%`, c2, y + 10);
+      y += 17;
+      const metrics = [
+        ['Thermal Risk Index', `${safeNum(scanData?.riskScore).toFixed(1)} / 100`],
+        ['Thermal Asymmetry',  safeNum(scanData?.asymmetry).toFixed(3)],
+        ['Variance',           safeNum(scanData?.variance).toFixed(3)],
+        ['Edge Strength',      safeNum(scanData?.edgeStrength).toFixed(3)],
+        ['Prediction Frames',  String(scanData?.predictionHistory?.length ?? 0)],
+        ['Scan ID',            (scanId ?? '').slice(0, 14)],
+      ];
+      const cw3 = CW / 3;
+      metrics.forEach(([lbl, val], idx) => {
+        const mx = ML + 4 + (idx % 3) * cw3;
+        const my = y + Math.floor(idx / 3) * 10;
+        pageCheck(14);
+        setFont(7.5, 'normal', 100, 116, 139); pdf.text(lbl, mx, my);
+        setFont(9, 'bold', 34, 211, 153); pdf.text(val, mx, my + 5);
+      });
+      y += Math.ceil(metrics.length / 3) * 10 + 6;
+
+      // Thermal Images
+      const tb64 = scanData?.thermalImage;
+      const mb64 = scanData?.modelInputImage;
+      if (tb64 || mb64) {
+        pageCheck(80); y = sectionHeader('Captured Scan Images', y);
+        const iw = 75, ih = 58;
+        if (tb64?.length > 100) {
+          setFont(7, 'normal', 100, 116, 139); pdf.text('Thermal Camera Feed', ML + 4, y);
+          try { pdf.addImage('data:image/jpeg;base64,' + tb64, 'JPEG', ML + 4, y + 2, iw, ih); }
+          catch { pdf.text('[Image unavailable]', ML + 4, y + 30); }
         }
-
-        yPosition += imgHeight + 8;
-      } else {
-        console.warn('No images available for PDF. thermalImage:', !!scanData?.thermalImage, 'modelInputImage:', !!scanData?.modelInputImage);
+        if (mb64?.length > 100) {
+          const ix = tb64 ? ML + 4 + iw + 8 : ML + 4;
+          setFont(7, 'normal', 100, 116, 139); pdf.text('Model Input (224x224)', ix, y);
+          try { pdf.addImage('data:image/jpeg;base64,' + mb64, 'JPEG', ix, y + 2, 58, 58); }
+          catch { pdf.text('[Image unavailable]', ix, y + 30); }
+        }
+        y += ih + 12;
       }
 
-      // AI Analysis Section
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 128, 100);
-      pdf.text('AI ANALYSIS RESULTS', 10, yPosition);
-      yPosition += 8;
-
-      pdf.setFontSize(10);
-      pdf.setTextColor(50, 50, 50);
-      pdf.text(`Status: ${scanData?.status || 'N/A'}`, 10, yPosition);
-      pdf.text(`Confidence: ${(safeNum(scanData?.confidence) * 100).toFixed(1)}%`, 10, yPosition + 5);
-      pdf.text(`Thermal Risk Index: ${safeNum(scanData?.riskScore).toFixed(1)}/100`, 10, yPosition + 10);
-      pdf.text(`Asymmetry: ${safeNum(scanData?.asymmetry).toFixed(2)}`, 10, yPosition + 15);
-      pdf.text(`Variance: ${safeNum(scanData?.variance).toFixed(2)}`, 10, yPosition + 20);
-      pdf.text(`Edge Strength: ${safeNum(scanData?.edgeStrength).toFixed(2)}`, 10, yPosition + 25);
-
-      yPosition += 35;
-
-      // Check if we need a new page
-      if (yPosition > pageHeight - 60) {
-        pdf.addPage();
-        yPosition = 15;
+      // Physician Review
+      pageCheck(55); y = sectionHeader('Physician Review & Assessment', y);
+      pdf.setFillColor(16, 185, 129);
+      pdf.setGState(new pdf.GState({ opacity: 0.07 }));
+      pdf.rect(ML, y, CW + 2, 8, 'F');
+      pdf.setGState(new pdf.GState({ opacity: 1 }));
+      setFont(7.5, 'normal', 100, 116, 139); pdf.text('Final Diagnosis', ML + 4, y + 3.2);
+      setFont(9, 'bold', 16, 185, 129); pdf.text(finalDiagnosis || 'Not specified', ML + 4, y + 7.2);
+      y += 11;
+      if (doctorRemarks) {
+        pageCheck(20); setFont(7.5, 'normal', 100, 116, 139);
+        pdf.text('Clinical Remarks', ML + 4, y); y += 4;
+        setFont(8.5, 'normal', 40, 55, 70);
+        const rl = pdf.splitTextToSize(doctorRemarks, CW - 6); pdf.text(rl, ML + 4, y);
+        y += rl.length * 4.2 + 4;
+      }
+      if (treatmentPlan) {
+        pageCheck(20); setFont(7.5, 'normal', 100, 116, 139);
+        pdf.text('Treatment Plan', ML + 4, y); y += 4;
+        setFont(8.5, 'normal', 40, 55, 70);
+        const pl = pdf.splitTextToSize(treatmentPlan, CW - 6); pdf.text(pl, ML + 4, y);
+        y += pl.length * 4.2 + 4;
       }
 
-      // Doctor Review Section
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 128, 100);
-      pdf.text('DOCTOR REVIEW', 10, yPosition);
-      yPosition += 8;
+      // Signature
+      pageCheck(28); y += 8; hLine(y, 0.15); y += 5;
+      setFont(7.5, 'normal', 100, 116, 139);
+      pdf.text('Physician Signature', ML + 4, y); pdf.text('Date', ML + 90, y); y += 8;
+      pdf.setDrawColor(80, 100, 120); pdf.setLineWidth(0.25);
+      pdf.line(ML + 4, y, ML + 80, y); pdf.line(ML + 90, y, ML + 130, y); y += 4;
+      setFont(7, 'normal', 30, 40, 55);
+      pdf.text(currentUser?.email ?? '', ML + 4, y);
+      pdf.text(new Date().toLocaleDateString(), ML + 90, y);
 
-      pdf.setFontSize(10);
-      pdf.setTextColor(50, 50, 50);
-      
-      const remarksLines = pdf.splitTextToSize(`Remarks: ${doctorRemarks || 'None'}`, 180);
-      pdf.text(remarksLines, 10, yPosition);
-      yPosition += remarksLines.length * 5 + 5;
-
-      const diagnosisLines = pdf.splitTextToSize(`Final Diagnosis: ${finalDiagnosis || 'None'}`, 180);
-      pdf.text(diagnosisLines, 10, yPosition);
-      yPosition += diagnosisLines.length * 5 + 5;
-
-      const planLines = pdf.splitTextToSize(`Treatment Plan: ${treatmentPlan || 'None'}`, 180);
-      pdf.text(planLines, 10, yPosition);
-
-      // Footer
-      pdf.setFontSize(8);
-      pdf.setTextColor(84, 110, 122);
-      pdf.text(
-        'This report was generated with AI-assisted analysis and reviewed by a licensed physician.',
-        10,
-        pageHeight - 10
-      );
+      // Footer on every page
+      const total = pdf.internal.getNumberOfPages();
+      for (let pg = 1; pg <= total; pg++) {
+        pdf.setPage(pg);
+        pdf.setFillColor(6, 16, 32); pdf.rect(0, PH - 10, PW, 10, 'F');
+        pdf.setFillColor(16, 185, 129); pdf.rect(0, PH - 10, PW, 0.5, 'F');
+        setFont(6.5, 'normal', 80, 96, 115);
+        pdf.text('CONFIDENTIAL — For authorized clinical use only. AI-assisted analysis reviewed by a licensed physician.', ML, PH - 4.5);
+        pdf.text(`Page ${pg} of ${total}`, MR, PH - 4.5, { align: 'right' });
+      }
 
       return pdf;
     } catch (error) {
@@ -269,8 +290,8 @@ export default function ReportPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#050d1a]">
-        <div className="text-[#00ffc8] font-mono">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen ">
+        <div className="text-[#10B981] font-mono">Loading...</div>
       </div>
     );
   }
@@ -280,10 +301,10 @@ export default function ReportPage() {
       <div className="relative z-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#00ffc8] font-mono mb-2">
+          <h1 className="text-3xl font-bold text-[#10B981] font-mono mb-2">
             DOCTOR REVIEW & REPORT
           </h1>
-          <p className="text-[#546e7a] font-mono text-sm">
+          <p className="text-[#6B7280] font-mono text-sm">
             {patientData?.name || 'Unknown Patient'} • {patientData?.mrn || 'N/A'}
           </p>
         </div>
@@ -294,19 +315,19 @@ export default function ReportPage() {
           <div className="space-y-6">
             {/* Patient & Scan Info */}
             <div className="glow-card rounded-lg p-6">
-              <h2 className="text-lg font-bold text-[#00ffc8] font-mono mb-4">
+              <h2 className="text-lg font-bold text-[#10B981] font-mono mb-4">
                 SCAN SUMMARY
               </h2>
-              <div className="space-y-3 font-mono text-sm text-[#e0f7fa]">
+              <div className="space-y-3 font-mono text-sm text-[#1E1B4B]">
                 <div>
-                  <span className="text-[#546e7a]">Status:</span>
+                  <span className="text-[#6B7280]">Status:</span>
                   <div className="mt-1">
                     <StatusBadge status={scanData?.status || 'UNKNOWN'} size="md" />
                   </div>
                 </div>
                 <div>
-                  <span className="text-[#546e7a]">Confidence Score</span>
-                  <div className="text-[#0080ff]">
+                  <span className="text-[#6B7280]">Confidence Score</span>
+                  <div className="text-[#10B981]">
                     {(safeNum(scanData?.confidence) * 100).toFixed(1)}%
                   </div>
                 </div>
@@ -314,28 +335,28 @@ export default function ReportPage() {
 
               {/* Captured Images */}
               {(scanData?.thermalImage || scanData?.modelInputImage) && (
-                <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
-                  <div className="text-xs font-mono text-[#546e7a] mb-3">
+                <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
+                  <div className="text-xs font-mono text-[#6B7280] mb-3">
                     CAPTURED IMAGES
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     {scanData?.thermalImage && (
                       <div>
-                        <div className="text-xs font-mono text-[#546e7a] mb-1">Thermal Feed</div>
+                        <div className="text-xs font-mono text-[#6B7280] mb-1">Thermal Feed</div>
                         <img
                           src={`data:image/jpeg;base64,${scanData.thermalImage}`}
                           alt="Thermal Camera Feed"
-                          className="w-full rounded border border-[rgba(0,255,200,0.2)]"
+                          className="w-full rounded border border-[rgba(16,185,129,0.18)]"
                         />
                       </div>
                     )}
                     {scanData?.modelInputImage && (
                       <div>
-                        <div className="text-xs font-mono text-[#546e7a] mb-1">Model Input</div>
+                        <div className="text-xs font-mono text-[#6B7280] mb-1">Model Input</div>
                         <img
                           src={`data:image/jpeg;base64,${scanData.modelInputImage}`}
                           alt="Model Input 224x224"
-                          className="w-full rounded border border-[rgba(0,255,200,0.2)]"
+                          className="w-full rounded border border-[rgba(16,185,129,0.18)]"
                         />
                       </div>
                     )}
@@ -344,7 +365,7 @@ export default function ReportPage() {
               )}
 
               {/* Thermal Risk Index */}
-              <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
+              <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
                 <ThermalRiskBar
                   riskScore={safeNum(scanData?.riskScore)}
                   label="THERMAL RISK INDEX"
@@ -352,26 +373,26 @@ export default function ReportPage() {
               </div>
 
               {/* Key Metrics */}
-              <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
-                <div className="text-xs font-mono text-[#546e7a] mb-3">
+              <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
+                <div className="text-xs font-mono text-[#6B7280] mb-3">
                   KEY METRICS
                 </div>
-                <div className="space-y-2 font-mono text-sm text-[#e0f7fa]">
+                <div className="space-y-2 font-mono text-sm text-[#1E1B4B]">
                   <div>
-                    <span className="text-[#546e7a]">Asymmetry:</span>
-                    <span className="ml-2 text-[#0080ff]">
+                    <span className="text-[#6B7280]">Asymmetry:</span>
+                    <span className="ml-2 text-[#10B981]">
                       {safeNum(scanData?.asymmetry).toFixed(2)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#546e7a]">Variance:</span>
-                    <span className="ml-2 text-[#0080ff]">
+                    <span className="text-[#6B7280]">Variance:</span>
+                    <span className="ml-2 text-[#10B981]">
                       {safeNum(scanData?.variance).toFixed(2)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#546e7a]">Edge Strength:</span>
-                    <span className="ml-2 text-[#0080ff]">
+                    <span className="text-[#6B7280]">Edge Strength:</span>
+                    <span className="ml-2 text-[#10B981]">
                       {safeNum(scanData?.edgeStrength).toFixed(2)}
                     </span>
                   </div>
@@ -379,7 +400,7 @@ export default function ReportPage() {
               </div>
 
               {/* Prediction Buffer */}
-              <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
+              <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
                 <PredictionBuffer
                   history={scanData?.predictionHistory || []}
                   maxLength={60}
@@ -393,10 +414,10 @@ export default function ReportPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* AI Analysis Summary */}
               <div className="glow-card rounded-lg p-6">
-                <h2 className="text-lg font-bold text-[#00ffc8] font-mono mb-4">
+                <h2 className="text-lg font-bold text-[#10B981] font-mono mb-4">
                   AI ANALYSIS SUMMARY
                 </h2>
-                <div className="bg-[#050d1a] rounded p-4 font-mono text-sm text-[#546e7a] border border-[rgba(0,255,200,0.1)]">
+                <div className=" rounded p-4 font-mono text-sm text-[#6B7280] border border-[rgba(16,185,129,0.15)]">
                   Analysis detected {scanData?.status || 'UNKNOWN'} with{' '}
                   {(safeNum(scanData?.confidence) * 100).toFixed(1)}% confidence. Thermal Risk
                   Index: {safeNum(scanData?.riskScore).toFixed(1)}/100. Significant hotspot
@@ -407,7 +428,7 @@ export default function ReportPage() {
 
               {/* Doctor Remarks */}
               <div className="glow-card rounded-lg p-6">
-                <label className="block text-xs font-mono text-[#546e7a] mb-2">
+                <label className="block text-xs font-mono text-[#6B7280] mb-2">
                   DOCTOR REMARKS
                 </label>
                 <textarea
@@ -422,7 +443,7 @@ export default function ReportPage() {
 
               {/* Final Diagnosis */}
               <div className="glow-card rounded-lg p-6">
-                <label className="block text-xs font-mono text-[#546e7a] mb-2">
+                <label className="block text-xs font-mono text-[#6B7280] mb-2">
                   FINAL DIAGNOSIS *
                 </label>
                 <select
@@ -453,7 +474,7 @@ export default function ReportPage() {
 
               {/* Treatment Plan */}
               <div className="glow-card rounded-lg p-6">
-                <label className="block text-xs font-mono text-[#546e7a] mb-2">
+                <label className="block text-xs font-mono text-[#6B7280] mb-2">
                   TREATMENT PLAN
                 </label>
                 <textarea

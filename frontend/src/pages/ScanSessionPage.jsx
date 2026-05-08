@@ -181,8 +181,8 @@ export default function ScanSessionPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#050d1a]">
-        <div className="text-[#00ffc8] font-mono">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen ">
+        <div className="text-[#10B981] font-mono">Loading...</div>
       </div>
     );
   }
@@ -192,10 +192,10 @@ export default function ScanSessionPage() {
       <div className="relative z-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#00ffc8] font-mono mb-2">
+          <h1 className="text-3xl font-bold text-[#10B981] font-mono mb-2">
             SCAN SESSION
           </h1>
-          <p className="text-[#546e7a] font-mono text-sm">
+          <p className="text-[#6B7280] font-mono text-sm">
             {patient?.name} • {patient?.mrn}
           </p>
         </div>
@@ -210,24 +210,24 @@ export default function ScanSessionPage() {
                 <div
                   className="w-3 h-3 rounded-full"
                   style={{
-                    backgroundColor: streamConnected ? '#00ffc8' : '#ff4b6e',
+                    backgroundColor: streamConnected ? '#10B981' : '#F87171',
                     boxShadow: streamConnected
-                      ? '0 0 10px #00ffc8'
-                      : '0 0 10px #ff4b6e',
+                      ? '0 0 10px #10B981'
+                      : '0 0 10px #F87171',
                   }}
                 />
-                <span className="font-mono text-xs text-[#e0f7fa]">
+                <span className="font-mono text-xs text-[#1E1B4B]">
                   {streamConnected ? 'LIVE' : 'CONNECTING...'}
                 </span>
                 {analysisActive && (
-                  <span className="font-mono text-xs text-[#ff4b6e] ml-2 animate-pulse">
+                  <span className="font-mono text-xs text-[#EF4444] ml-2 animate-pulse">
                     ● ANALYZING
                   </span>
                 )}
               </div>
 
               {/* MJPEG Video Feed — just an img tag, no WebSocket */}
-              <div className="bg-black rounded w-full aspect-video flex items-center justify-center relative overflow-hidden border border-[rgba(0,255,200,0.2)]">
+              <div className="bg-black rounded w-full aspect-video flex items-center justify-center relative overflow-hidden border border-[rgba(16,185,129,0.18)]">
                 <img
                   src={mjpegUrl}
                   alt="Thermal Camera Feed"
@@ -239,14 +239,14 @@ export default function ScanSessionPage() {
                 {!streamConnected && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black bg-opacity-80">
                     <div
-                      className="w-8 h-8 border-2 border-[rgba(0,255,200,0.2)] border-t-[#00ffc8] rounded-full mb-3"
+                      className="w-8 h-8 border-2 border-[rgba(16,185,129,0.18)] border-t-[#10B981] rounded-full mb-3"
                       style={{ animation: 'spin 1s linear infinite' }}
                     />
                     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                    <span className="font-mono text-[#546e7a] text-sm">
+                    <span className="font-mono text-[#6B7280] text-sm">
                       Connecting to thermal camera...
                     </span>
-                    <span className="font-mono text-[#546e7a] text-xs mt-1 opacity-60">
+                    <span className="font-mono text-[#6B7280] text-xs mt-1 opacity-60">
                       {INFERENCE_SERVER_URL}
                     </span>
                   </div>
@@ -257,7 +257,7 @@ export default function ScanSessionPage() {
               <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono space-y-1 z-20">
                 <div className="text-[#ff0000]">▓ HOT</div>
                 <div className="text-[#ffff00]">▓ WARM</div>
-                <div className="text-[#0080ff]">▓ COOL</div>
+                <div className="text-[#10B981]">▓ COOL</div>
               </div>
             </div>
           </div>
@@ -267,10 +267,10 @@ export default function ScanSessionPage() {
             {/* Model Input Preview */}
             <div className="glow-card rounded-lg p-6">
               <div className="mb-4">
-                <div className="text-xs font-mono text-[#546e7a] mb-3">
+                <div className="text-xs font-mono text-[#6B7280] mb-3">
                   MODEL INPUT PREVIEW
                 </div>
-                <div className="w-56 h-56 bg-black rounded border border-[rgba(0,255,200,0.15)] overflow-hidden relative">
+                <div className="w-56 h-56 bg-black rounded border border-[rgba(16,185,129,0.15)] overflow-hidden relative">
                   <img
                     src={`${INFERENCE_SERVER_URL}/model_input_feed`}
                     alt="Model Input 224x224"
@@ -278,7 +278,7 @@ export default function ScanSessionPage() {
                     style={{ imageRendering: 'auto' }}
                   />
                 </div>
-                <div className="text-xs font-mono text-[#546e7a] mt-2 opacity-60">
+                <div className="text-xs font-mono text-[#6B7280] mt-2 opacity-60">
                   224×224 • COLORMAP_OCEAN • Live
                 </div>
               </div>
@@ -325,7 +325,7 @@ export default function ScanSessionPage() {
               </div>
 
               {/* Thermal Risk Bar */}
-              <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
+              <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
                 <ThermalRiskBar
                   riskScore={analysisData.risk_score || 0}
                   label="THERMAL RISK INDEX"
@@ -333,8 +333,8 @@ export default function ScanSessionPage() {
               </div>
 
               {/* Status Badge */}
-              <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
-                <div className="text-xs font-mono text-[#546e7a] mb-3">
+              <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
+                <div className="text-xs font-mono text-[#6B7280] mb-3">
                   FINAL STATUS
                 </div>
                 <StatusBadge
@@ -344,7 +344,7 @@ export default function ScanSessionPage() {
               </div>
 
               {/* Prediction Buffer */}
-              <div className="mt-6 pt-6 border-t border-[rgba(0,255,200,0.15)]">
+              <div className="mt-6 pt-6 border-t border-[rgba(16,185,129,0.15)]">
                 <PredictionBuffer
                   history={analysisData.prediction_history || []}
                   maxLength={60}
@@ -359,7 +359,7 @@ export default function ScanSessionPage() {
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             {/* Countdown Timer */}
             {analysisActive && (
-              <div className="text-4xl font-mono text-[#00ffc8] font-bold">
+              <div className="text-4xl font-mono text-[#10B981] font-bold">
                 {String(countdownTime).padStart(2, '0')}:{String(0).padStart(2, '0')}
               </div>
             )}
@@ -380,8 +380,8 @@ export default function ScanSessionPage() {
                   onClick={handleStopAnalysis}
                   className="btn-primary flex-1 sm:flex-none font-bold uppercase px-8"
                   style={{
-                    backgroundColor: '#ff4b6e',
-                    borderColor: '#ff4b6e',
+                    backgroundColor: '#F87171',
+                    borderColor: '#F87171',
                     color: '#fff',
                   }}
                 >

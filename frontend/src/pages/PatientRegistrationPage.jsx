@@ -77,10 +77,10 @@ export default function PatientRegistrationPage() {
       <div className="relative z-10 max-w-2xl mx-auto">
         <div className="glow-card rounded-lg p-8">
           {/* Header */}
-          <h1 className="text-3xl font-bold text-[#00ffc8] font-mono mb-2">
+          <h1 className="text-3xl font-bold text-[#10B981] font-mono mb-2">
             NEW PATIENT SCAN
           </h1>
-          <p className="text-[#546e7a] font-mono text-sm mb-6">
+          <p className="text-[#6B7280] font-mono text-sm mb-6">
             Clinical Registration Form
           </p>
 
@@ -88,7 +88,7 @@ export default function PatientRegistrationPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Patient Full Name */}
             <div>
-              <label className="block text-xs font-mono text-[#546e7a] mb-2">
+              <label className="block text-xs font-mono text-[#6B7280] mb-2">
                 PATIENT FULL NAME *
               </label>
               <input
@@ -104,7 +104,7 @@ export default function PatientRegistrationPage() {
 
             {/* MRN */}
             <div>
-              <label className="block text-xs font-mono text-[#546e7a] mb-2">
+              <label className="block text-xs font-mono text-[#6B7280] mb-2">
                 PATIENT ID / MRN *
               </label>
               <input
@@ -120,7 +120,7 @@ export default function PatientRegistrationPage() {
 
             {/* DOB */}
             <div>
-              <label className="block text-xs font-mono text-[#546e7a] mb-2">
+              <label className="block text-xs font-mono text-[#6B7280] mb-2">
                 DATE OF BIRTH *
               </label>
               <input
@@ -136,7 +136,7 @@ export default function PatientRegistrationPage() {
 
             {/* Diabetes Type */}
             <div>
-              <label className="block text-xs font-mono text-[#546e7a] mb-2">
+              <label className="block text-xs font-mono text-[#6B7280] mb-2">
                 DIABETES TYPE *
               </label>
               <select
@@ -156,7 +156,7 @@ export default function PatientRegistrationPage() {
 
             {/* Duration */}
             <div>
-              <label className="block text-xs font-mono text-[#546e7a] mb-2">
+              <label className="block text-xs font-mono text-[#6B7280] mb-2">
                 DURATION OF DIABETES (years) *
               </label>
               <input
@@ -173,7 +173,7 @@ export default function PatientRegistrationPage() {
 
             {/* Conditions */}
             <div>
-              <label className="block text-xs font-mono text-[#546e7a] mb-3">
+              <label className="block text-xs font-mono text-[#6B7280] mb-3">
                 KNOWN FOOT CONDITIONS
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -187,9 +187,9 @@ export default function PatientRegistrationPage() {
                       checked={formData.conditions.includes(condition)}
                       onChange={() => handleConditionToggle(condition)}
                       disabled={loading}
-                      className="w-4 h-4 accent-[#00ffc8]"
+                      className="w-4 h-4 accent-[#10B981]"
                     />
-                    <span className="ml-2 text-sm text-[#e0f7fa] font-mono">
+                    <span className="ml-2 text-sm text-[#1E1B4B] font-mono">
                       {condition}
                     </span>
                   </label>
@@ -199,7 +199,7 @@ export default function PatientRegistrationPage() {
 
             {/* Notes */}
             <div>
-              <label className="block text-xs font-mono text-[#546e7a] mb-2">
+              <label className="block text-xs font-mono text-[#6B7280] mb-2">
                 DOCTOR NOTES (PRE-SCAN)
               </label>
               <textarea
@@ -219,7 +219,7 @@ export default function PatientRegistrationPage() {
                 type="button"
                 onClick={() => navigate('/dashboard')}
                 disabled={loading}
-                className="flex-1 px-4 py-2 rounded font-mono bg-[#0a1628] border-2 border-[#546e7a] text-[#546e7a] hover:border-[#e0f7fa] hover:text-[#e0f7fa] transition-all"
+                className="flex-1 px-4 py-2 rounded font-mono bg-[#FAF8FF] border-2 border-[#6B7280] text-[#6B7280] hover:border-[#1E1B4B] hover:text-[#1E1B4B] transition-all"
               >
                 Cancel
               </button>

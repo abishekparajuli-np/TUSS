@@ -79,11 +79,16 @@ function App() {
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#0a1628',
-              color: '#00ffc8',
-              border: '1px solid rgba(0, 255, 200, 0.2)',
-              fontFamily: "'IBM Plex Mono', monospace",
+              background: '#FFFFFF',
+              color: '#1E1B4B',
+              border: '1px solid #EDE9FE',
+              borderRadius: '10px',
+              fontFamily: "'Inter', sans-serif",
+              fontSize: '0.875rem',
+              boxShadow: '0 4px 16px rgba(109,40,217,0.12)',
             },
+            success: { iconTheme: { primary: '#10B981', secondary: '#fff' } },
+            error:   { iconTheme: { primary: '#F87171', secondary: '#fff' } },
           }}
         />
       </AuthProvider>
