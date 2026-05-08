@@ -13,6 +13,7 @@
 - [Tech Stack](#tech-stack)
 - [System Architecture](#system-architecture)
 - [Project Structure](#project-structure)
+- [📥 Model Download (REQUIRED)](#-ai-model-download-required)
 - [Prerequisites](#prerequisites)
 - [Installation & Setup](#installation--setup)
 - [Running the Application](#running-the-application)
@@ -248,6 +249,23 @@ Diabetic foot ulcers are a significant complication affecting millions of patien
 ---
 
 ## 📦 Prerequisites
+
+### 🤖 AI Model Download (Required)
+
+**IMPORTANT**: Before proceeding with installation, download the DeiT thermal model:
+
+1. **Download Link**: [deit_thermo_model.pth](https://drive.google.com/file/d/10u9a7vkIzuAgG0EoWXazbOKjeMVeyQ_g/view?usp=sharing)
+2. **Place the file** in: `backend/deit_thermo_model.pth`
+3. **File size**: ~22MB
+4. **Verify**: 
+   ```bash
+   ls backend/deit_thermo_model.pth        # macOS/Linux
+   dir backend\deit_thermo_model.pth       # Windows
+   ```
+
+> ⚠️ **Without this model file, the backend inference server will not start!**
+
+---
 
 ### System Requirements
 
